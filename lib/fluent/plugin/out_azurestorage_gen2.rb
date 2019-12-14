@@ -5,7 +5,7 @@ require 'fluent/plugin/output'
 require 'fluent/plugin/abfs_client'
 
 module Fluent::Plugin
-    class AzureStorageV2Output < Fluent::Plugin::Output
+    class AzureStorageGen2Output < Fluent::Plugin::Output
       Fluent::Plugin.register_output('azurestorage_gen2', self)
 
         helpers :compat_parameters, :formatter, :inject
@@ -80,7 +80,7 @@ module Fluent::Plugin
         end
 
         def write(chuck)
-            upload(@azure_container, @azure_access_token)
+            AbfsClient::upload(@azure_container, @azure_access_token)
         end
 
         def format(tag, time, record)
@@ -91,7 +91,7 @@ module Fluent::Plugin
 
         private
         def ensure_container
-            container_exists(@azure_container, @)
+            AbfsClient::container_exists(@azure_container, @)
         end
 
         def setup_access_token

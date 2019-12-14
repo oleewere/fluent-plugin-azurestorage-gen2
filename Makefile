@@ -26,4 +26,6 @@ build: pre-args unit-test gem push-gem
 
 local-build: pre-args unit-test gem
 
+local-release: stable-args gem
+
 release: stable-args unit-test tag-and-branch gem push-gem
