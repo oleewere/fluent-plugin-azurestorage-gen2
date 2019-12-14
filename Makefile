@@ -16,11 +16,11 @@ stable-args:
 	(head -1 VERSION | tr -d '\n'; echo '') > GEMSPEC_ARGS
 
 gem:
-	rm -f fluent-plugin-azurestorage-v2*.gem
-	gem build fluent-plugin-azurestorage-v2.gemspec
+	rm -f fluent-plugin-azurestorage-gen2*.gem
+	gem build fluent-plugin-azurestorage-gen2.gemspec
 
 push-gem:
-	gem push fluent-plugin-azurestorage-v2-$$(head -1 GEMSPEC_ARGS).gem
+	gem push fluent-plugin-azurestorage-gen2-$$(head -1 GEMSPEC_ARGS).gem
 
 build: pre-args unit-test gem push-gem
 

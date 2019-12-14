@@ -6,7 +6,7 @@ require 'fluent/plugin/abfs_client'
 
 module Fluent::Plugin
     class AzureStorageV2Output < Fluent::Plugin::Output
-      Fluent::Plugin.register_output('azurestorage_v2', self)
+      Fluent::Plugin.register_output('azurestorage_gen2', self)
 
         helpers :compat_parameters, :formatter, :inject
 
@@ -27,6 +27,8 @@ module Fluent::Plugin
         config_param :auto_create_container, :bool, :default => false
         config_param :format, :string, :default => "out_file"
         config_param :command_parameter, :string, :default => nil
+
+        DEFAULT_FORMAT_TYPE = "out_file"
 
         config_section :format do
             config_set_default :@type, DEFAULT_FORMAT_TYPE

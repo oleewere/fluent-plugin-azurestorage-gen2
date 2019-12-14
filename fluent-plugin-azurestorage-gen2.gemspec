@@ -29,10 +29,10 @@ Gem::Specification.new do |gem|
     raise StandardError, "Cannot build in released version: #{version}"
   end
 
-  gem.name = "fluent-plugin-azurestorage-v2"
+  gem.name = "fluent-plugin-azurestorage-gen2"
   gem.description = "Azure Storage output plugin for Fluentd event collector"
   gem.license = "Apache-2.0"
-  gem.homepage = "https://github.com/oleewere/fluent-plugin-azurestorage-v2"
+  gem.homepage = "https://github.com/oleewere/fluent-plugin-azurestorage-gen2"
   gem.summary = gem.description
   gem.version = version
   gem.authors = ["Oliver Szabo"]
