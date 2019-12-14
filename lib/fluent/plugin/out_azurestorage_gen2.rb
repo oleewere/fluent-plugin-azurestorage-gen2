@@ -2,6 +2,7 @@ require 'net/http'
 require 'json'
 require 'tempfile'
 require 'time'
+require 'typhoeus'
 require 'fluent/plugin/output'
 
 module Fluent::Plugin
@@ -98,7 +99,7 @@ module Fluent::Plugin
                 #append_blob(content, metadata)
                 log.info "Metadata: #{metadata}"
                 log.info "Storage path: #{@azure_storage_path}"
-                upload(@azure_container, @azure_access_token, log)
+                upload
                 @last_azure_storage_path = @azure_storage_path
             ensure
                 tmp.unlink
@@ -108,11 +109,6 @@ module Fluent::Plugin
         def format(tag, time, record)
             r = inject_values_to_record(tag, time, record)
             @formatter.format(tag, time, r)
-        end
-
-        private
-        def ensure_container
-            container_exists(@azure_container, @azure_access_token, log)
         end
 
         private
@@ -152,42 +148,67 @@ module Fluent::Plugin
         # Referenced from azure doc.
         # https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/tutorial-linux-vm-access-storage#get-an-access-token-and-use-it-to-call-azure-storage
         def acquire_access_token
-            uri = URI('http://169.254.169.254/metadata/identity/oauth2/token')
             params = { :"api-version" => "2018-02-01", :resource => "https://storage.azure.com/" }
             unless @azure_instance_msi.nil?
                 params[:msi_res_id] = @azure_instance_msi
             end
-            uri.query = URI.encode_www_form(params)
-  
-            req = Net::HTTP::Get.new(uri)
-            req['Metadata'] = "true"
-  
-            res = Net::HTTP.start(uri.hostname, uri.port) {|http|
-                http.request(req)
-            }
-            if res.is_a?(Net::HTTPSuccess)
-                data = JSON.parse(res.body)
-                log.debug "Token response: #{data}"
-                token = data["access_token"]
-            else
-                raise Fluent::UnrecoverableError, "Failed to acquire access token. #{res.code}: #{res.body}"
+            request = Typhoeus::Request.new("http://169.254.169.254/metadata/identity/oauth2/token", params: params, headers: { Metadata: "true"})
+            request.on_complete do |response|
+                if response.success?
+                  data = JSON.parse(response.body)
+                  log.debug "Token response: #{data}"
+                  @azure_access_token = data["access_token"]
+                else
+                    raise Fluent::UnrecoverableError, "Failed to acquire access token. #{response.code}: #{response.body}"
+                end
             end
-            @azure_access_token = token
-        end
-
-        private
-        def container_exists
-            log.info "Check container exists"
-        end
-    
-        private
-        def create_container
-            log.info "Create container"
+            request.run
         end
     
         private
         def upload
             log.info "Upload file #{@azure_access_token}"
+        end
+
+        private
+        def ensure_container
+            headers = {:"x-ms-version" =>  "2018-11-09", :"Authorization" => "Bearer #{@azure_access_token}",:"Content-Length" => "0"}
+            params = {:resource => "filesystem" }
+            request = Typhoeus::Request.new("https://#{azure_storage_account}#{URL_DOMAIN_SUFFIX}/#{@azure_container}", :method => :head, :params => params, :headers=> headers)
+            request.on_complete do |response|
+                if response.success?
+                  log.info "Container '#{@azure_container}' exists."
+                elsif response.timed_out?
+                    raise Fluent::UnrecoverableError,  "Get container '#{@azure_container}' request timed out."
+                elsif response.code == 404
+                    log.info "Container '#{@azure_container}' does not exist. Creating it if needed..."
+                    if @auto_create_container
+                        create_container
+                    else
+                        raise Fluent::ConfigError, "The specified container does not exist: container = #{@azure_container}"
+                    end
+                else
+                    raise Fluent::UnrecoverableError, "Get container request failed - code: #{response.code}, body: #{response.body}"
+                end
+            end
+            request.run
+        end
+
+        private
+        def create_container
+            headers = {:"x-ms-version" =>  "2018-11-09", :"Authorization" => "Bearer #{@azure_access_token}",:"Content-Length" => "0"}
+            params = {:resource => "filesystem" }
+            request = Typhoeus::Request.new("https://#{azure_storage_account}#{URL_DOMAIN_SUFFIX}/#{@azure_container}", :method => :put, :params => params, :headers=> headers)
+            request.on_complete do |response|
+                if response.success?
+                  log.info "Container '#{@azure_container}' created, response code: #{response.code}"
+                elsif response.timed_out?
+                    raise Fluent::UnrecoverableError,  "Creating container '#{@azure_container}' request timed out."
+                else
+                    raise Fluent::UnrecoverableError, "Creating container request failed - code: #{response.code}, body: #{response.body}"
+                end
+            end
+            request.run
         end
 
     end
