@@ -27,13 +27,23 @@ $ gem install fluent-plugin-azurestorage-gen2
 ```
 <match **>
   @type azurestorage_gen2
-  azure_storage_account    mystorageabfs
-  azure_container          mycontainer
-  azure_instance_msi       /subscriptions/mysubscriptionid
-  azure_object_key_format  %{path}-%{index}.%{file_extension}
-  file_extension           log
-  path                     "/cluster-logs/myfolder/${tag[1]}-#{Socket.gethostname}-%M"
-  auto_create_container    true
+  azure_storage_account            mystorageabfs
+  azure_container                  mycontainer
+  azure_instance_msi               /subscriptions/mysubscriptionid
+  azure_object_key_format          %{path}-%{index}.%{file_extension}
+  azure_oauth_refresh_interval     3600
+  time_slice_format                %Y%m%d-%H
+  file_extension                   log
+  path                             "/cluster-logs/myfolder/${tag[1]}-#{Socket.gethostname}-%M"
+  auto_create_container            true
+  <buffer tag,time>
+    @type file
+    path /var/log/fluent/azurestorage-buffer
+    timekey 5m
+    timekey_wait 0s
+    timekey_use_utc true
+    chunk_limit_size 64m
+  </buffer>
 </match>
 ```
 
