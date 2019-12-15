@@ -24,10 +24,10 @@ module Fluent::Plugin
         config_param :azure_oauth_refresh_interval, :integer, :default => 60 * 60 # one hour
         config_param :azure_container, :string, :default => nil
         config_param :azure_object_key_format, :string, :default => "%{path}%{time_slice}_%{index}.%{file_extension}"
+        config_param :file_extension, :string, :default => "log"
         config_param :store_as, :string, :default => "gzip"
         config_param :auto_create_container, :bool, :default => false
         config_param :format, :string, :default => "out_file"
-        config_param :command_parameter, :string, :default => nil
         config_param :time_slice_format, :string, :default => '%Y%m%d'
 
         DEFAULT_FORMAT_TYPE = "out_file"
@@ -144,7 +144,8 @@ module Fluent::Plugin
             values_for_object_key = {
                 "%{path}" => path,
                 "%{time_slice}" => time_slice,
-                "%{index}" => index
+                "%{index}" => index,
+                "%{file_extension}" => @file_extension
             }
             storage_path = @azure_object_key_format.gsub(%r(%{[^}]+}), values_for_object_key)
             extracted_path = extract_placeholders(storage_path, metadata)
