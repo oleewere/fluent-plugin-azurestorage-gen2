@@ -196,7 +196,7 @@ Format of the time used as the file name. Default is '%Y%m%d'. Use '%Y%m%d%H' to
 
 ### time_slice_wait
 
-The time to wait old logs. Default is 10 minutes. Specify larger value if old logs may reache.
+The time to wait old logs. Default is 10 minutes.
 
 ### utc
 
