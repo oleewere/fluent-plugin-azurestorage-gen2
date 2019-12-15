@@ -27,8 +27,8 @@ $ gem install fluent-plugin-azurestorage-gen2
 ```
 <match **>
   @type azurestorage_gen2
-  azure_storage_account    cloudbreakabfs
-  azure_container          oszabo
+  azure_storage_account    mystorageabfs
+  azure_container          mycontainer
   azure_instance_msi       /subscriptions/mysubscriptionid
   azure_object_key_format  %{path}-%{index}.%{file_extension}
   file_extension           log
