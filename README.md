@@ -24,11 +24,27 @@ $ gem install fluent-plugin-azurestorage-gen2
 
 ## Configuration
 
-TODO
+```
+<match **>
+  @type azurestorage_gen2
+  azure_storage_account    cloudbreakabfs
+  azure_container          oszabo
+  azure_instance_msi       /subscriptions/mysubscriptionid
+  azure_object_key_format  %{path}-%{index}.%{file_extension}
+  file_extension           log
+  path                     "/cluster-logs/myfolder/${tag[1]}-#{Socket.gethostname}-%M"
+  auto_create_container    true
+</match>
+```
 
 ### Configuration options
 
 TODO
+
+## TODOs
+
+- add storage key support
+- add compression (if append is not used)
 
 ## Contributing
 
