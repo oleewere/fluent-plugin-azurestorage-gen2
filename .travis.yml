@@ -1,9 +1,7 @@
 language: ruby
 
 rvm:
-  - 2.1
-  - 2.2.0
-  - rbx
+  - 2.4
 
 gemfile:
  - Gemfile
