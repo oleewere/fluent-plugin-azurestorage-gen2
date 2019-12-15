@@ -1,4 +1,4 @@
-# Azure Datalake Storage Gen2 Output Plugin (IN PROGRESS)
+# Azure Datalake Storage Gen2 Fluentd Output Plugin (IN PROGRESS)
 
 [![Build Status](https://travis-ci.org/oleewere/fluent-plugin-azurestorage-gen2.svg?branch=master)](https://travis-ci.org/oleewere/fluent-plugin-azurestorage-gen2)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
@@ -11,7 +11,7 @@
 
 ## Overview
 
-Fluent filter plugin that can use ABFS api and append blobs with MSI support
+Fluent output plugin that can use ABFS api and append blobs with MSI support
 
 ## Installation
 
