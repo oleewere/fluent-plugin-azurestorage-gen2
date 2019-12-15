@@ -17,8 +17,6 @@ Gem::Specification.new do |gem|
   gem.require_paths = ['lib']
 
   gem.add_runtime_dependency 'fluentd', ['>= 1.0', '< 2']
-  gem.add_runtime_dependency 'azure-storage-common', '~> 1.1', '>= 1.1.0'
-  gem.add_runtime_dependency 'azure-storage-blob', '~> 1.1', '>= 1.1.0'
   gem.add_runtime_dependency 'uuidtools', '~> 2.1', '>= 2.1.5'
   gem.add_runtime_dependency 'typhoeus', '~> 1.0', '>= 1.0.1'
   gem.add_runtime_dependency 'json', '~> 2.1', '>= 2.1.0'
