@@ -263,7 +263,7 @@ module Fluent::Plugin
             log.debug "azurestorage_gen2: append_blob_block.start: Append blob ('#{blob_path}') called with position #{position}"
             headers = {:"x-ms-version" =>  ABFS_API_VERSION, :"x-ms-content-type" => "text/plain", :"Authorization" => "Bearer #{@azure_access_token}"}
             params = {:action => "append", :position => "#{position}"}
-            request = Typhoeus::Request.new("https://#{azure_storage_account}#{URL_DOMAIN_SUFFIX}/#{@azure_container}/testprefix#{blob_path}", :method => :patch, :body => content, :params => params, :headers=> headers)
+            request = Typhoeus::Request.new("https://#{azure_storage_account}#{URL_DOMAIN_SUFFIX}/#{@azure_container}#{blob_path}", :method => :patch, :body => content, :params => params, :headers=> headers)
             request.on_complete do |response|
                 if response.success?
                     log.debug "azurestorage_gen2: Blob '#{blob_path}' has been appended, response code: #{response.code}"
@@ -285,7 +285,7 @@ module Fluent::Plugin
             log.debug "azurestorage_gen2: flush_blob.start: Flush blob ('#{blob_path}') called with position #{position}"
             headers = {:"x-ms-version" =>  ABFS_API_VERSION, :"Authorization" => "Bearer #{@azure_access_token}",:"Content-Length" => "0"}
             params = {:action => "flush", :position => "#{position}"}
-            request = Typhoeus::Request.new("https://#{azure_storage_account}#{URL_DOMAIN_SUFFIX}/#{@azure_container}/testprefix#{blob_path}", :method => :patch, :params => params, :headers=> headers)
+            request = Typhoeus::Request.new("https://#{azure_storage_account}#{URL_DOMAIN_SUFFIX}/#{@azure_container}#{blob_path}", :method => :patch, :params => params, :headers=> headers)
             request.on_complete do |response|
                 if response.success?
                     log.debug "azurestorage_gen2: Blob '#{blob_path}' flush was successful, response code: #{response.code}"
@@ -303,7 +303,7 @@ module Fluent::Plugin
             headers = {:"x-ms-version" =>  ABFS_API_VERSION, :"Authorization" => "Bearer #{@azure_access_token}",:"Content-Length" => "0"}
             params = {}
             content_length = -1
-            request = Typhoeus::Request.new("https://#{azure_storage_account}#{URL_DOMAIN_SUFFIX}/#{@azure_container}/testprefix#{blob_path}", :method => :head, :params => params, :headers=> headers)
+            request = Typhoeus::Request.new("https://#{azure_storage_account}#{URL_DOMAIN_SUFFIX}/#{@azure_container}#{blob_path}", :method => :head, :params => params, :headers=> headers)
             request.on_complete do |response|
                 if response.success?
                   log.debug "azurestorage_gen2: Get blob properties for '#{blob_path}', response headers: #{response.headers}"
