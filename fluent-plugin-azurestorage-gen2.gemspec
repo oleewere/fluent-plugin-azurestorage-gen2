@@ -1,40 +1,13 @@
 # encoding: utf-8
 $:.push File.expand_path('../lib', __FILE__)
 
-require 'open3'
-
 Gem::Specification.new do |gem|
-
-  arg_file = File.expand_path("../GEMSPEC_ARGS", __FILE__)
-  unless File.file?(arg_file)
-    raise 'Missing GEMSPEC_ARGS, please build the gem by "make build".'
-  end
-
-  args = []
-  File.open(arg_file).each_line do |line|
-    line = line.chomp
-    unless line.empty?
-      args.push(line)
-    end
-  end
-
-  version_pattern = '^[0-9]+\.[0-9]+\.[0-9]+(\.pre)?$'
-  version = args[0]
-  unless version.=~ /#{version_pattern}/
-    raise StandardError, "Invalid version. Should be {number}.{number}.{number}(.pre)?"
-  end
-
-  latest_rel = Open3.capture2('git describe --tags --match "v[0-9]*.[0-9]*.[0-9]*" --always | cut -d "-" -f 1')[0].strip
-  if latest_rel.=~ /v#{version_pattern}/ and version == latest_rel[1..latest_rel.length]
-    raise StandardError, "Cannot build in released version: #{version}"
-  end
-
   gem.name = "fluent-plugin-azurestorage-gen2"
   gem.description = "Azure Storage output plugin for Fluentd event collector"
   gem.license = "Apache-2.0"
   gem.homepage = "https://github.com/oleewere/fluent-plugin-azurestorage-gen2"
   gem.summary = gem.description
-  gem.version = version
+  gem.version = File.read("VERSION").strip
   gem.authors = ["Oliver Szabo"]
   gem.email = ["oleewere@gmail.com"]
   #gem.platform    = Gem::Platform::RUBY
