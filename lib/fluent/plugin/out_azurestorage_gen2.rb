@@ -23,7 +23,6 @@ module Fluent::Plugin
         config_param :azure_instance_msi, :string, :default => nil
         config_param :azure_oauth_refresh_interval, :integer, :default => 60 * 60 # one hour
         config_param :azure_container, :string, :default => nil
-        config_param :azure_storage_type, :string, :default => "blob"
         config_param :azure_object_key_format, :string, :default => "%{path}%{time_slice}_%{index}.%{file_extension}"
         config_param :store_as, :string, :default => "gzip"
         config_param :auto_create_container, :bool, :default => false
@@ -65,15 +64,7 @@ module Fluent::Plugin
             if @azure_container.nil?
               raise Fluent::ConfigError, "azure_container is needed"
             end
-      
-            @storage_type = case @azure_storage_type
-                              when 'tables'
-                                raise NotImplementedError
-                              when 'queues'
-                                raise NotImplementedError
-                              else
-                                'blob'
-                            end
+
             @azure_storage_path = ''
             @last_azure_storage_path = ''
             @current_index = 0
