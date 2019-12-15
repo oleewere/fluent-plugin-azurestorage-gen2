@@ -12,7 +12,3 @@ branches:
 
 # bundle exec rake test
 script: make gem
-
-matrix:
-  allow_failures:
-    - rvm: rbx
