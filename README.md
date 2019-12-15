@@ -11,7 +11,7 @@
 
 ## Overview
 
-Fluent filter plugin that can use ABFS api and append blobs
+Fluent filter plugin that can use ABFS api and append blobs with MSI support
 
 ## Installation
 
