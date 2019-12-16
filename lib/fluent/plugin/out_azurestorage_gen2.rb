@@ -235,7 +235,7 @@ module Fluent::Plugin
         def create_blob(blob_path)
             headers = {:"x-ms-version" =>  ABFS_API_VERSION, :"Authorization" => "Bearer #{@azure_access_token}",:"Content-Length" => "0", :"Content-Type" => "application/json"}
             params = {:resource => "file", :recursive => "false"}
-            request = Typhoeus::Request.new("https://#{azure_storage_account}#{URL_DOMAIN_SUFFIX}/#{@azure_container}/#{blob_path}", :method => :put, :params => params, :headers=> headers)
+            request = Typhoeus::Request.new("https://#{azure_storage_account}#{URL_DOMAIN_SUFFIX}/#{@azure_container}#{blob_path}", :method => :put, :params => params, :headers=> headers)
             request.on_complete do |response|
                 if response.success?
                     log.debug "azurestorage_gen2: Blob '#{blob_path}' has been created, response code: #{response.code}"
