@@ -1,4 +1,4 @@
-# Azure Datalake Storage Gen2 Fluentd Output Plugin (IN PROGRESS)
+# Azure Datalake Storage Gen2 Fluentd Output Plugin
 
 [![Build Status](https://travis-ci.org/oleewere/fluent-plugin-azurestorage-gen2.svg?branch=master)](https://travis-ci.org/oleewere/fluent-plugin-azurestorage-gen2)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
