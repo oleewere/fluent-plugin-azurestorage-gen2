@@ -238,7 +238,7 @@ module Fluent::Plugin
                 elsif response.timed_out?
                     raise Fluent::UnrecoverableError,  "Creating container '#{@azure_container}' request timed out."
                 else
-                    raise Fluent::UnrecoverableError, "Creating container request failed - code: #{response.body}, body: #{response.body}"
+                    raise Fluent::UnrecoverableError, "Creating container request failed - code: #{response.code}, body: #{response.body}"
                 end
             end
             request.run
