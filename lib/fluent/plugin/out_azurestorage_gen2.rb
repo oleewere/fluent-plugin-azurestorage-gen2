@@ -1,4 +1,6 @@
 require 'net/http'
+require 'base64'
+require 'openssl'
 require 'json'
 require 'tempfile'
 require 'time'
@@ -154,19 +156,23 @@ module Fluent::Plugin
         end
 
         def setup_access_token
-            @get_token_lock = Concurrent::ReadWriteLock.new
-            acquire_access_token
-            if @azure_oauth_refresh_interval > 0
-                log.info("azurestorage_gen2: Start getting access token every #{@azure_oauth_refresh_interval} seconds.")
-                @get_token_task = Concurrent::TimerTask.new(
-                    execution_interval: @azure_oauth_refresh_interval) {
-                    begin
-                        acquire_access_token
-                    rescue Exception => e
-                        log.warn("#{e.message}, continue with previous credentials.")
-                    end
-                }
-                @get_token_task.execute
+            if @azure_storage_access_key.nil?
+                @get_token_lock = Concurrent::ReadWriteLock.new
+                acquire_access_token
+                if @azure_oauth_refresh_interval > 0
+                    log.info("azurestorage_gen2: Start getting access token every #{@azure_oauth_refresh_interval} seconds.")
+                    @get_token_task = Concurrent::TimerTask.new(
+                        execution_interval: @azure_oauth_refresh_interval) {
+                        begin
+                            acquire_access_token
+                        rescue Exception => e
+                            log.warn("#{e.message}, continue with previous credentials.")
+                        end
+                    }
+                    @get_token_task.execute
+                end
+            else
+                log.info "azurestorage_gen2: Access storage key is configured, MSI support is disabled."
             end
         end
 
@@ -192,8 +198,11 @@ module Fluent::Plugin
 
         private
         def ensure_container
-            headers = {:"x-ms-version" =>  ABFS_API_VERSION, :"Authorization" => "Bearer #{@azure_access_token}",:"Content-Length" => "0"}
+            datestamp = create_request_date
+            headers = {:"x-ms-version" =>  ABFS_API_VERSION, :"x-ms-date" => datestamp,:"Content-Length" => "0"}
             params = {:resource => "filesystem" }
+            auth_header = create_auth_header("head", datestamp, "#{@azure_container}", headers, params)
+            headers[:Authorization] = auth_header
             request = Typhoeus::Request.new("https://#{azure_storage_account}#{URL_DOMAIN_SUFFIX}/#{@azure_container}", :method => :head, :params => params, :headers=> headers)
             request.on_complete do |response|
                 if response.success?
@@ -216,8 +225,12 @@ module Fluent::Plugin
 
         private
         def create_container
-            headers = {:"x-ms-version" =>  ABFS_API_VERSION, :"Authorization" => "Bearer #{@azure_access_token}",:"Content-Length" => "0"}
+            datestamp = create_request_date
+            headers = {:"x-ms-version" =>  ABFS_API_VERSION, :"x-ms-date" => datestamp, :"Content-Length" => "0"}
+            auth_header = create_auth_header("put", datestamp, "#{@azure_container}", headers, params)
+            headers[:Authorization] = auth_header
             params = {:resource => "filesystem" }
+            auth_header = create_auth_header("put", datestamp, "#{@azure_container}", headers, params)
             request = Typhoeus::Request.new("https://#{azure_storage_account}#{URL_DOMAIN_SUFFIX}/#{@azure_container}", :method => :put, :params => params, :headers=> headers)
             request.on_complete do |response|
                 if response.success?
@@ -225,7 +238,7 @@ module Fluent::Plugin
                 elsif response.timed_out?
                     raise Fluent::UnrecoverableError,  "Creating container '#{@azure_container}' request timed out."
                 else
-                    raise Fluent::UnrecoverableError, "Creating container request failed - code: #{response.code}, body: #{response.body}"
+                    raise Fluent::UnrecoverableError, "Creating container request failed - code: #{response.body}, body: #{response.body}"
                 end
             end
             request.run
@@ -233,8 +246,11 @@ module Fluent::Plugin
 
         private
         def create_blob(blob_path)
-            headers = {:"x-ms-version" =>  ABFS_API_VERSION, :"Authorization" => "Bearer #{@azure_access_token}",:"Content-Length" => "0", :"Content-Type" => "application/json"}
+            datestamp = create_request_date
+            headers = {:"x-ms-version" =>  ABFS_API_VERSION, :"x-ms-date" => datestamp,:"Content-Length" => "0", :"Content-Type" => "application/json"}
             params = {:resource => "file", :recursive => "false"}
+            auth_header = create_auth_header("put", datestamp, "#{@azure_container}#{blob_path}", headers, params)
+            headers[:Authorization] = auth_header
             request = Typhoeus::Request.new("https://#{azure_storage_account}#{URL_DOMAIN_SUFFIX}/#{@azure_container}#{blob_path}", :method => :put, :params => params, :headers=> headers)
             request.on_complete do |response|
                 if response.success?
@@ -253,8 +269,11 @@ module Fluent::Plugin
         private
         def append_blob_block(blob_path, content, position)
             log.debug "azurestorage_gen2: append_blob_block.start: Append blob ('#{blob_path}') called with position #{position}"
-            headers = {:"x-ms-version" =>  ABFS_API_VERSION, :"x-ms-content-type" => "text/plain", :"Authorization" => "Bearer #{@azure_access_token}"}
+            datestamp = create_request_date
+            headers = {:"x-ms-version" =>  ABFS_API_VERSION,  :"x-ms-date" => datestamp, :"x-ms-content-type" => "text/plain"}
             params = {:action => "append", :position => "#{position}"}
+            auth_header = create_auth_header("patch", datestamp, "#{@azure_container}#{blob_path}", headers, params)
+            headers[:Authorization] = auth_header
             request = Typhoeus::Request.new("https://#{azure_storage_account}#{URL_DOMAIN_SUFFIX}/#{@azure_container}#{blob_path}", :method => :patch, :body => content, :params => params, :headers=> headers)
             request.on_complete do |response|
                 if response.success?
@@ -275,8 +294,11 @@ module Fluent::Plugin
         private
         def flush(blob_path, position)
             log.debug "azurestorage_gen2: flush_blob.start: Flush blob ('#{blob_path}') called with position #{position}"
-            headers = {:"x-ms-version" =>  ABFS_API_VERSION, :"Authorization" => "Bearer #{@azure_access_token}",:"Content-Length" => "0"}
+            datestamp = create_request_date
+            headers = {:"x-ms-version" =>  ABFS_API_VERSION, :"x-ms-date" => datestamp,:"Content-Length" => "0"}
             params = {:action => "flush", :position => "#{position}"}
+            auth_header = create_auth_header("patch", datestamp, "#{@azure_container}#{blob_path}",headers, params)
+            headers[:Authorization] = auth_header
             request = Typhoeus::Request.new("https://#{azure_storage_account}#{URL_DOMAIN_SUFFIX}/#{@azure_container}#{blob_path}", :method => :patch, :params => params, :headers=> headers)
             request.on_complete do |response|
                 if response.success?
@@ -292,9 +314,12 @@ module Fluent::Plugin
 
         private
         def get_blob_properties(blob_path)
-            headers = {:"x-ms-version" =>  ABFS_API_VERSION, :"Authorization" => "Bearer #{@azure_access_token}",:"Content-Length" => "0"}
+            datestamp = create_request_date
+            headers = {:"x-ms-version" =>  ABFS_API_VERSION, :"x-ms-date" => datestamp, :"Content-Length" => "0"}
             params = {}
             content_length = -1
+            auth_header = create_auth_header("head", datestamp, "#{@azure_container}#{blob_path}", headers, params)
+            headers[:Authorization] = auth_header
             request = Typhoeus::Request.new("https://#{azure_storage_account}#{URL_DOMAIN_SUFFIX}/#{@azure_container}#{blob_path}", :method => :head, :params => params, :headers=> headers)
             request.on_complete do |response|
                 if response.success?
@@ -354,6 +379,70 @@ module Fluent::Plugin
           flush(@azure_storage_path, existing_content_length)
           log.debug "azurestorage_gen2: append_blob.complete"
         end
+
+        private
+        def create_auth_header(method, datestamp, resource, headers, params)
+            if @azure_storage_access_key.nil?
+                "Bearer #{@azure_access_token}"
+            else
+                "SharedKey #{@azure_storage_account}:#{signed(method, datestamp, resource, headers, params)}"
+            end
+        end
+
+        private
+        def signed(method, datestamp, resource, headers, params)
+            sign_request(Base64.strict_decode64(@azure_storage_access_key), signable_string(method, resource, params, headers, datestamp))
+        end
+
+        private
+        def sign_request(key, signable_string)
+            signed = OpenSSL::HMAC.digest('sha256', key, signable_string)
+            Base64.strict_encode64(signed)
+        end
+
+        private
+        def signable_string(method, resource, params, headers, datestamp)
+            [
+              method.to_s.upcase,
+              headers.fetch("Content-Encoding", ""),
+              headers.fetch("Content-Language", ""),
+              headers.fetch("Content-Length", "").sub(/^0+/, ""),
+              headers.fetch("Content-MD5", ""),
+              headers.fetch("Content-Type", ""),
+              headers.fetch("Date", ""),
+              headers.fetch("If-Modified-Since", ""),
+              headers.fetch("If-Match", ""),
+              headers.fetch("If-None-Match", ""),
+              headers.fetch("If-Unmodified-Since", ""),
+              headers.fetch("Range", ""),
+              "x-ms-date:#{datestamp}\nx-ms-version:#{ABFS_API_VERSION}",
+              get_canonicalized_resource(resource, params)
+            ].join("\n")
+        end
+
+        private
+        def get_canonicalized_resource(resource, params)
+            if params.empty?
+                canonicalized_resource="/#{@azure_storage_account}"
+            else
+                canonicalized_params = params
+                .map{|paramKey, paramValue| "#{paramKey.to_s.downcase}:#{paramValue}"}
+                .join("\n")
+                canonicalized_resource="/#{@azure_storage_account}/#{resource}\n#{canonicalized_params}"
+            end
+        end
+
+        private
+        def hex_to_bin(hex)
+            hex = '0' << hex unless (hex.length % 2) == 0
+            hex.scan(/[A-Fa-f0-9]{2}/).inject('') { |encoded, byte| encoded << [byte].pack('H*') }
+        end
+
+        private
+        def create_request_date
+            Time.now.strftime('%a, %e %b %y %H:%M:%S %Z')
+        end
+
     end
 
     class AppendBlobResponseError < StandardError
