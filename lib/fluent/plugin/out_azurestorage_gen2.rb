@@ -31,6 +31,7 @@ module Fluent::Plugin
         config_param :auto_create_container, :bool, :default => false
         config_param :format, :string, :default => "out_file"
         config_param :time_slice_format, :string, :default => '%Y%m%d'
+        config_param :command_parameter, :string, :default => nil
 
         DEFAULT_FORMAT_TYPE = "out_file"
         URL_DOMAIN_SUFFIX = '.dfs.core.windows.net'
@@ -147,6 +148,7 @@ module Fluent::Plugin
                 "%{path}" => path,
                 "%{time_slice}" => time_slice,
                 "%{index}" => index,
+                "%{uuid_flush}" => uuid_random,
                 "%{file_extension}" => @file_extension
             }
             storage_path = @azure_object_key_format.gsub(%r(%{[^}]+}), values_for_object_key)
@@ -391,7 +393,8 @@ module Fluent::Plugin
 
         private
         def signed(method, datestamp, resource, headers, params)
-            sign_request(Base64.strict_decode64(@azure_storage_access_key), signable_string(method, resource, params, headers, datestamp))
+            decoded_access_key=Base64.strict_decode64(@azure_storage_access_key).unpack("H*").first
+            sign_request(decoded_access_key, signable_string(method, resource, params, headers, datestamp))
         end
 
         private
@@ -441,6 +444,113 @@ module Fluent::Plugin
         private
         def create_request_date
             Time.now.strftime('%a, %e %b %y %H:%M:%S %Z')
+        end
+
+        def uuid_random
+            require 'uuidtools'
+            ::UUIDTools::UUID.random_create.to_s
+        end
+        
+        def timekey_to_timeformat(timekey)
+            case timekey
+            when nil          then ''
+            when 0...60       then '%Y%m%d%H%M%S' # 60 exclusive
+            when 60...3600    then '%Y%m%d%H%M'
+            when 3600...86400 then '%Y%m%d%H'
+            else                   '%Y%m%d'
+            end
+        end
+
+        class Compressor
+            include Fluent::Configurable
+      
+            def initialize(opts = {})
+              super()
+              @buffer_type = opts[:buffer_type]
+              @log = opts[:log]
+            end
+      
+            attr_reader :buffer_type, :log
+      
+            def configure(conf)
+              super
+            end
+      
+            def ext
+            end
+      
+            def content_type
+            end
+      
+            def compress(chunk, tmp)
+            end
+      
+            private
+            def check_command(command, algo = nil)
+              require 'open3'
+      
+              algo = command if algo.nil?
+              begin
+                Open3.capture3("#{command} -V")
+              rescue Errno::ENOENT
+                raise Fluent::ConfigError, "'#{command}' utility must be in PATH for #{algo} compression"
+              end
+            end
+          end
+      
+        class GzipCompressor < Compressor
+            def ext
+              'gz'.freeze
+            end
+      
+            def content_type
+              'application/x-gzip'.freeze
+            end
+      
+            def compress(chunk, tmp)
+              w = Zlib::GzipWriter.new(tmp)
+              chunk.write_to(w)
+              w.finish
+            ensure
+              w.finish rescue nil
+            end
+        end
+      
+        class TextCompressor < Compressor
+            def ext
+              'txt'.freeze
+            end
+      
+            def content_type
+              'text/plain'.freeze
+            end
+      
+            def compress(chunk, tmp)
+              chunk.write_to(tmp)
+            end
+        end
+      
+        class JsonCompressor < TextCompressor
+            def ext
+              'json'.freeze
+            end
+      
+            def content_type
+              'application/json'.freeze
+            end
+        end
+      
+        COMPRESSOR_REGISTRY = Fluent::Registry.new(:azurestorage_compressor_type, 'fluent/plugin/azurestorage_compressor_')
+        {
+              'gzip' => GzipCompressor,
+              'json' => JsonCompressor,
+              'text' => TextCompressor
+        }.each { |name, compressor|
+            COMPRESSOR_REGISTRY.register(name, compressor)
+        }
+      
+        def self.register_compressor(name, compressor)
+            COMPRESSOR_REGISTRY.register(name, compressor)
         end
 
     end
