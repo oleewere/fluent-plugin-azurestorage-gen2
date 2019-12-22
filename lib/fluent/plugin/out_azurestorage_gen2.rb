@@ -421,7 +421,6 @@ module Fluent::Plugin
         private
         def create_auth_header(method, datestamp, resource, headers, params)
             if @azure_storage_access_key.nil?
-                log.debug "Bearer #{@azure_access_token}"
                 "Bearer #{@azure_access_token}"
             else
                 "SharedKey #{@azure_storage_account}:#{signed(method, datestamp, resource, headers, params)}"
