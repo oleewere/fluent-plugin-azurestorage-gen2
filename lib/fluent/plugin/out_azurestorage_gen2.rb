@@ -265,10 +265,9 @@ module Fluent::Plugin
         def create_container
             datestamp = create_request_date
             headers = {:"x-ms-version" =>  ABFS_API_VERSION, :"x-ms-date" => datestamp, :"Content-Length" => "0"}
-            auth_header = create_auth_header("put", datestamp, "#{@azure_container}", headers, params)
-            headers[:Authorization] = auth_header
             params = {:resource => "filesystem" }
             auth_header = create_auth_header("put", datestamp, "#{@azure_container}", headers, params)
+            headers[:Authorization] = auth_header
             request = Typhoeus::Request.new("https://#{azure_storage_account}#{URL_DOMAIN_SUFFIX}/#{@azure_container}", :method => :put, :params => params, :headers=> headers)
             request.on_complete do |response|
                 if response.success?
