@@ -24,6 +24,8 @@ module Fluent::Plugin
         config_param :azure_storage_access_key, :string, :default => nil, :secret => true
         config_param :azure_instance_msi, :string, :default => nil
         config_param :azure_oauth_refresh_interval, :integer, :default => 60 * 60 # one hour
+        config_param :azure_oauth_client_id, :string, :default => nil, :secret => true
+
         config_param :azure_container, :string, :default => nil
         config_param :azure_object_key_format, :string, :default => "%{path}%{time_slice}_%{index}.%{file_extension}"
         config_param :file_extension, :string, :default => "log"
@@ -540,7 +542,7 @@ module Fluent::Plugin
             end
         end
       
-        COMPRESSOR_REGISTRY = Fluent::Registry.new(:azurestorage_compressor_type, 'fluent/plugin/azurestorage_compressor_')
+        COMPRESSOR_REGISTRY = Fluent::Registry.new(:azurestorage_compressor_type, 'fluent/plugin/azurestorage_gen2_compressor_')
         {
               'gzip' => GzipCompressor,
               'json' => JsonCompressor,
