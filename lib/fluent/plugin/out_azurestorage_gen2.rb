@@ -23,9 +23,10 @@ module Fluent::Plugin
         config_param :azure_storage_account, :string, :default => nil
         config_param :azure_storage_access_key, :string, :default => nil, :secret => true
         config_param :azure_instance_msi, :string, :default => nil
+        config_param :azure_oauth_app_id, :string, :default => nil, :secret => true
+        config_param :azure_oauth_secret, :string, :default => nil, :secret => true
+        config_param :azure_oauth_tenant_id, :string, :default => nil
         config_param :azure_oauth_refresh_interval, :integer, :default => 60 * 60 # one hour
-        config_param :azure_oauth_client_id, :string, :default => nil, :secret => true
-
         config_param :azure_container, :string, :default => nil
         config_param :azure_object_key_format, :string, :default => "%{path}%{time_slice}_%{index}.%{file_extension}"
         config_param :file_extension, :string, :default => "log"
@@ -180,14 +181,42 @@ module Fluent::Plugin
             end
         end
 
+        def acquire_access_token
+            if !@azure_instance_msi.nil?
+                acquire_access_token_msi
+            elsif !@azure_oauth_app_id.nil? and !@azure_oauth_secret.nil? and !@azure_oauth_tenant_id.nil?
+                acquire_access_token_oauth_app
+            else
+                raise Fluent::UnrecoverableError, "Using MSI or simple OAuth 2.0 based authentication parameters (azure_oauth_tenant_id, azure_oauth_app_id, azure_oauth_secret) are required."
+            end
+        end
+
         # Referenced from azure doc.
         # https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/tutorial-linux-vm-access-storage#get-an-access-token-and-use-it-to-call-azure-storage
-        def acquire_access_token
+        private
+        def acquire_access_token_msi
             params = { :"api-version" => ACCESS_TOKEN_API_VERSION, :resource => "https://storage.azure.com/" }
             unless @azure_instance_msi.nil?
                 params[:msi_res_id] = @azure_instance_msi
             end
             request = Typhoeus::Request.new("http://169.254.169.254/metadata/identity/oauth2/token", params: params, headers: { Metadata: "true"})
+            request.on_complete do |response|
+                if response.success?
+                  data = JSON.parse(response.body)
+                  log.debug "azurestorage_gen2: Token response: #{data}"
+                  @azure_access_token = data["access_token"]
+                else
+                    raise Fluent::UnrecoverableError, "Failed to acquire access token. #{response.code}: #{response.body}"
+                end
+            end
+            request.run
+        end
+
+        private
+        def acquire_access_token_oauth_app
+            params = { :"api-version" => ACCESS_TOKEN_API_VERSION, :resource => "https://storage.azure.com/"}
+            content = "grant_type=client_credentials&client_id=#{@azure_oauth_app_id}&client_secret=#{@azure_oauth_secret}&resource=https://storage.azure.com/"
+            request = Typhoeus::Request.new("https://login.microsoftonline.com/#{@azure_oauth_tenant_id}/oauth2/token", params: params, :body => content)
             request.on_complete do |response|
                 if response.success?
                   data = JSON.parse(response.body)
@@ -221,7 +250,7 @@ module Fluent::Plugin
                         raise Fluent::ConfigError, "The specified container does not exist: container = #{@azure_container}"
                     end
                 else
-                    raise Fluent::UnrecoverableError, "Get container request failed - code: #{response.code}, body: #{response.body}"
+                    raise Fluent::UnrecoverableError, "Get container request failed - code: #{response.code}, headers: #{response.headers}"
                 end
             end
             request.run
@@ -242,7 +271,7 @@ module Fluent::Plugin
                 elsif response.timed_out?
                     raise Fluent::UnrecoverableError,  "Creating container '#{@azure_container}' request timed out."
                 else
-                    raise Fluent::UnrecoverableError, "Creating container request failed - code: #{response.code}, body: #{response.body}"
+                    raise Fluent::UnrecoverableError, "Creating container request failed - code: #{response.code}, body: #{response.body}, headers: #{response.headers}"
                 end
             end
             request.run
@@ -264,7 +293,7 @@ module Fluent::Plugin
                 elsif response.code == 409
                     log.debug "azurestorage_gen2: Blob already exists: #{blob_path}"
                 else
-                    raise Fluent::UnrecoverableError, "Creating blob '#{blob_path}' request failed - code: #{response.code}, body: #{response.body}"
+                    raise Fluent::UnrecoverableError, "Creating blob '#{blob_path}' request failed - code: #{response.code}, body: #{response.body}, headers: #{response.headers}"
                 end
             end
             request.run
@@ -289,7 +318,7 @@ module Fluent::Plugin
                 elsif response.code == 409
                     raise AppendBlobResponseError.new("Blob '#{blob_path}' has conflict. Error code: #{response.code}", 409)
                 else
-                    raise Fluent::UnrecoverableError, "Appending blob '#{blob_path}' request failed - code: #{response.code}, body: #{response.body}"
+                    raise Fluent::UnrecoverableError, "Appending blob '#{blob_path}' request failed - code: #{response.code}, body: #{response.body}, headers: #{response.headers}"
                 end
             end
             request.run
@@ -310,7 +339,7 @@ module Fluent::Plugin
                 elsif response.timed_out?
                     raise Fluent::UnrecoverableError,  "Bloub '#{blob_path}' flush request timed out."
                 else
-                    raise Fluent::UnrecoverableError, "Blob flush request failed - code: #{response.code}, body: #{response.body}"
+                    raise Fluent::UnrecoverableError, "Blob flush request failed - code: #{response.code}, body: #{response.body}, headers: #{response.headers}"
                 end
             end
             request.run
@@ -335,7 +364,7 @@ module Fluent::Plugin
                     log.debug "azurestorage_gen2: Blob '#{blob_path}' does not exist. Creating it if needed..."
                     content_length = 0
                 else
-                    raise Fluent::UnrecoverableError, "Get blob properties '#{blob_path}' request failed - code: #{response.code}, body: #{response.body}"
+                    raise Fluent::UnrecoverableError, "Get blob properties '#{blob_path}' request failed - code: #{response.code}, body: #{response.body}, headers: #{response.headers}"
                 end
             end
             request.run
@@ -387,6 +416,7 @@ module Fluent::Plugin
         private
         def create_auth_header(method, datestamp, resource, headers, params)
             if @azure_storage_access_key.nil?
+                log.debug "Bearer #{@azure_access_token}"
                 "Bearer #{@azure_access_token}"
             else
                 "SharedKey #{@azure_storage_account}:#{signed(method, datestamp, resource, headers, params)}"

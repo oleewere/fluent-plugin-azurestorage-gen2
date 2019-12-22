@@ -13,7 +13,7 @@
 
 ## Overview
 
-Fluent output plugin that can use ABFS api and append blobs with MSI support
+Fluent output plugin that can use ABFS api and append blobs with MSI and OAuth support.
 
 ## Installation
 
@@ -24,6 +24,7 @@ $ gem install fluent-plugin-azurestorage-gen2
 
 ## Configuration
 
+- Configuration on VMs by using MSI:
 ```
 <match **>
   @type azurestorage_gen2
@@ -31,6 +32,32 @@ $ gem install fluent-plugin-azurestorage-gen2
   azure_container                  mycontainer
   azure_instance_msi               /subscriptions/mysubscriptionid
   azure_object_key_format          %{path}-%{index}.%{file_extension}
+  azure_oauth_refresh_interval     3600
+  time_slice_format                %Y%m%d-%H
+  file_extension                   log
+  path                             "/cluster-logs/myfolder/${tag[1]}-#{Socket.gethostname}-%M"
+  auto_create_container            true
+  <buffer tag,time>
+    @type file
+    path /var/log/fluent/azurestorage-buffer
+    timekey 5m
+    timekey_wait 0s
+    timekey_use_utc true
+    chunk_limit_size 64m
+  </buffer>
+</match>
+```
+
+- Configuration outside of VMs with OAuth credentials:
+```
+<match **>
+  @type azurestorage_gen2
+  azure_storage_account            mystorageabfs
+  azure_container                  mycontainer
+  azure_object_key_format          %{path}-%{index}.%{file_extension}
+  azure_oauth_tenant_id            <my tenant id>
+  azure_oauth_app_id               <my app client id>
+  azure_oauth_secret               <my client secret>
   azure_oauth_refresh_interval     3600
   time_slice_format                %Y%m%d-%H
   file_extension                   log
@@ -62,9 +89,21 @@ Your Azure Storage Access Key(Primary or Secondary). This also can be got from A
 
 Your Azure Managed Service Identity ID. When storage key authentication is not used, the plugin uses OAuth2 to authenticate as given MSI. This authentication method only works on Azure VM. If the VM has only one MSI assigned, this parameter becomes optional and the only MSI will be used. Otherwise this parameter is required.
 
+### azure_oauth_tenant_id
+
+Azure account tenant id from your Azure Directory. Required if OAuth based credential mechanism is used.
+
+### azure_oauth_app_id
+
+OAuth client id that is used for OAuth based authentication. Required if OAuth based credential mechanism is used.
+
+### azure_oauth_secret
+
+OAuth client secret that is used for OAuth based authentication. Required if OAuth based credential mechanism is used.
+
 ### azure_oauth_refresh_interval
 
-OAuth2 access token refreshment interval in second. Only applies when MSI authentication is used.
+OAuth2 access token refreshment interval in second. Only applies when MSI / OAuth authentication is used.
 
 ### azure_container (Required)
 
