@@ -89,7 +89,7 @@ Your Azure Storage Access Key(Primary or Secondary). This also can be got from A
 
 Your Azure Managed Service Identity ID. When storage key authentication is not used, the plugin uses OAuth2 to authenticate as given MSI. This authentication method only works on Azure VM. If the VM has only one MSI assigned, this parameter becomes optional and the only MSI will be used. Otherwise this parameter is required.
 
-### azure_oauth_tenant_id
+### azure_oauth_tenant_id (Preview)
 
 Azure account tenant id from your Azure Directory. Required if OAuth based credential mechanism is used.
 
@@ -101,7 +101,7 @@ OAuth client id that is used for OAuth based authentication. Required if OAuth b
 
 OAuth client secret that is used for OAuth based authentication. Required if OAuth based credential mechanism is used.
 
-### azure_oauth_refresh_interval (Preview)
+### azure_oauth_refresh_interval
 
 OAuth2 access token refreshment interval in second. Only applies when MSI / OAuth authentication is used.
 
