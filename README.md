@@ -93,17 +93,21 @@ Your Azure Managed Service Identity ID. When storage key authentication is not u
 
 Azure account tenant id from your Azure Directory. Required if OAuth based credential mechanism is used.
 
-### azure_oauth_app_id
+### azure_oauth_app_id (Preview)
 
 OAuth client id that is used for OAuth based authentication. Required if OAuth based credential mechanism is used.
 
-### azure_oauth_secret
+### azure_oauth_secret (Preview)
 
 OAuth client secret that is used for OAuth based authentication. Required if OAuth based credential mechanism is used.
 
-### azure_oauth_refresh_interval
+### azure_oauth_refresh_interval (Preview)
 
 OAuth2 access token refreshment interval in second. Only applies when MSI / OAuth authentication is used.
+
+### azure_oauth_use_azure_cli (Preview)
+
+Use az (azure cli) for get the access token, use only if the cli is installed on the host where fluentd runs. With this option you do not require to use `azure_oauth_app_id`, `azure_oauth_secret` or `azure_oauth_tenant_id`
 
 ### azure_container (Required)
 

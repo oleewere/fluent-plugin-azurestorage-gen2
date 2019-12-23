@@ -26,6 +26,7 @@ module Fluent::Plugin
         config_param :azure_oauth_app_id, :string, :default => nil, :secret => true
         config_param :azure_oauth_secret, :string, :default => nil, :secret => true
         config_param :azure_oauth_tenant_id, :string, :default => nil
+        config_param :azure_oauth_use_azure_cli, :bool, :default => false
         config_param :azure_oauth_refresh_interval, :integer, :default => 60 * 60 # one hour
         config_param :azure_container, :string, :default => nil
         config_param :azure_object_key_format, :string, :default => "%{path}%{time_slice}_%{index}.%{file_extension}"
@@ -208,8 +209,10 @@ module Fluent::Plugin
                 acquire_access_token_msi
             elsif !@azure_oauth_app_id.nil? and !@azure_oauth_secret.nil? and !@azure_oauth_tenant_id.nil?
                 acquire_access_token_oauth_app
+            elsif @azure_oauth_use_azure_cli
+                acquire_access_token_by_az
             else
-                raise Fluent::UnrecoverableError, "Using MSI or simple OAuth 2.0 based authentication parameters (azure_oauth_tenant_id, azure_oauth_app_id, azure_oauth_secret) are required."
+                raise Fluent::UnrecoverableError, "Using MSI or 'az cli tool' or simple OAuth 2.0 based authentication parameters (azure_oauth_tenant_id, azure_oauth_app_id, azure_oauth_secret) are required."
             end
         end
 
@@ -237,8 +240,9 @@ module Fluent::Plugin
         private
         def acquire_access_token_oauth_app
             params = { :"api-version" => ACCESS_TOKEN_API_VERSION, :resource => "https://storage.azure.com/"}
+            headers = {:"Content-Type" => "application/x-www-form-urlencoded"}
             content = "grant_type=client_credentials&client_id=#{@azure_oauth_app_id}&client_secret=#{@azure_oauth_secret}&resource=https://storage.azure.com/"
-            request = Typhoeus::Request.new("https://login.microsoftonline.com/#{@azure_oauth_tenant_id}/oauth2/token", params: params, :body => content)
+            request = Typhoeus::Request.new("https://login.microsoftonline.com/#{@azure_oauth_tenant_id}/oauth2/token", :body => content, :headers => headers, verbose: true)
             request.on_complete do |response|
                 if response.success?
                   data = JSON.parse(response.body)
@@ -250,6 +254,12 @@ module Fluent::Plugin
             end
             request.run
         end
+
+        private
+        def acquire_access_token_by_az
+            access_token=`az account get-access-token --resource https://storage.azure.com/ --query accessToken -o tsv`
+            log.debug "azurestorage_gen2: Token response: #{access_token}"
+            @azure_access_token = access_token
 
         private
         def ensure_container
@@ -324,7 +334,7 @@ module Fluent::Plugin
         def append_blob_block(blob_path, content, position)
             log.debug "azurestorage_gen2: append_blob_block.start: Append blob ('#{blob_path}') called with position #{position}"
             datestamp = create_request_date
-            headers = {:"x-ms-version" =>  ABFS_API_VERSION,  :"x-ms-date" => datestamp, :"x-ms-content-type" => "#{@blob_content_type}"}
+            headers = {:"x-ms-version" =>  ABFS_API_VERSION,  :"x-ms-date" => datestamp, :"x-ms-content-type" => "#{@blob_content_type}", :"Content-Length" => content.length}
             params = {:action => "append", :position => "#{position}"}
             auth_header = create_auth_header("patch", datestamp, "#{@azure_container}#{blob_path}", headers, params)
             headers[:Authorization] = auth_header
@@ -349,7 +359,7 @@ module Fluent::Plugin
         def flush(blob_path, position)
             log.debug "azurestorage_gen2: flush_blob.start: Flush blob ('#{blob_path}') called with position #{position}"
             datestamp = create_request_date
-            headers = {:"x-ms-version" =>  ABFS_API_VERSION, :"x-ms-date" => datestamp,:"Content-Length" => "0"}
+            headers = {:"x-ms-version" => ABFS_API_VERSION, :"x-ms-date" => datestamp, :"Content-Length" => "0"}
             params = {:action => "flush", :position => "#{position}"}
             auth_header = create_auth_header("patch", datestamp, "#{@azure_container}#{blob_path}",headers, params)
             headers[:Authorization] = auth_header
