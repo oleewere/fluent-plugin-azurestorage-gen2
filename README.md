@@ -13,7 +13,7 @@
 
 ## Overview
 
-Fluent output plugin that can use ABFS api and append blobs with MSI and OAuth support.
+Fluent output plugin that can use ABFS api and append blobs with MSI and OAuth support. This plugin an extension of [fluent-plugin-azurestorage](https://github.com/htgc/fluent-plugin-azurestorage), but re-implemented against the Azure Storage Gen2 API with Typhoeus.
 
 ## Installation
 
@@ -167,6 +167,17 @@ azure_object_key_format %{path}/events/ts=%{time_slice}/events_%{index}-%{hostna
 
 File extension for the uploaded files. Only uses if `store_as` is not set, or set as `none`
 
+### store_as
+
+Archive format on Azure Storage. You can use following types:
+
+- none (default - no tmp file creation for log processing)
+- gzip
+- json
+- text
+- lzo (Need lzop command)
+- lzma2 (Need xz command)
+
 ### format
 
 Change one line format in the Azure Storage object. Supported formats are 'out_file', 'json', 'ltsv' and 'single_value'.
@@ -224,10 +235,6 @@ my log2
 ```
 
 You can change key name by "message_key" option.
-
-### store_as
-
-The format of the uploaded files on Azure storage. Possible values: `none`, `gzip`, `text`, `json`
 
 ### path
 
