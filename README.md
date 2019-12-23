@@ -244,7 +244,6 @@ Use UTC instead of local time.
 ## TODOs
 
 - add storage key support
-- add compression (if append is not used)
 
 ## Contributing
 

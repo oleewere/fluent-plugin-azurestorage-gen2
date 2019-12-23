@@ -30,7 +30,7 @@ module Fluent::Plugin
         config_param :azure_container, :string, :default => nil
         config_param :azure_object_key_format, :string, :default => "%{path}%{time_slice}_%{index}.%{file_extension}"
         config_param :file_extension, :string, :default => "log"
-        config_param :store_as, :string, :default => "gzip"
+        config_param :store_as, :string, :default => "none"
         config_param :auto_create_container, :bool, :default => false
         config_param :format, :string, :default => "out_file"
         config_param :time_slice_format, :string, :default => '%Y%m%d'
@@ -56,6 +56,14 @@ module Fluent::Plugin
             compat_parameters_convert(conf, :buffer, :formatter, :inject)
             super
 
+            begin
+                @compressor = COMPRESSOR_REGISTRY.lookup(@store_as).new(:buffer_type => @buffer_type, :log => log)
+            rescue => e
+                log.warn "#{@store_as} not found. Use 'text' instead"
+                @compressor = TextCompressor.new
+            end
+            @compressor.configure(conf)
+
             @formatter = formatter_create
       
             if @localtime
@@ -75,6 +83,14 @@ module Fluent::Plugin
             @azure_storage_path = ''
             @last_azure_storage_path = ''
             @current_index = 0
+            if @store_as.nil? || @store_as == "none"
+                @blob_content_type = "text/plain"
+                @final_file_extension = @file_extension
+            else
+                @blob_content_type = @compressor.content_type
+                @final_file_extension = @compressor.ext
+            end
+
         end
 
         def multi_workers_ready?
@@ -89,43 +105,44 @@ module Fluent::Plugin
 
         def write(chunk)
             metadata = chunk.metadata
-            
-            #tmp = Tempfile.new("azure-")
-            #begin
-            #    tmp.close
-            #    generate_log_name(metadata, @current_index)
-            #    if @last_azure_storage_path != @azure_storage_path
-            #        @current_index = 0
-            #        generate_log_name(metadata, @current_index)
-            #    end
-            #    content = File.open(tmp.path, 'rb') { |file| file.read }
-            #    raw_data = raw_data.chomp
-            #    log.debug "Content: #{content}"
-            #    upload_blob(content, metadata)
-            #    @last_azure_storage_path = @azure_storage_path
-            #ensure
-            #    tmp.close(true) rescue nil
-            #    tmp.unlink
-            #end
-            raw_data=''
-            generate_log_name(metadata, @current_index)
-            if @last_azure_storage_path != @azure_storage_path
-                @current_index = 0
+            if @store_as.nil? || @store_as == "none"
+                raw_data=''
                 generate_log_name(metadata, @current_index)
-            end
-            chunk.each do |emit_time, record|
-                if @message_field.nil? || @message_field.empty?
-                    raw_data << "#{Yajl.dump(record)}\n"
-                elsif record.key?(@message_field)
-                    line = record[@message_field].chomp
-                    raw_data << "#{line}\n"
+                if @last_azure_storage_path != @azure_storage_path
+                    @current_index = 0
+                    generate_log_name(metadata, @current_index)
+                end
+                chunk.each do |emit_time, record|
+                    if @message_field.nil? || @message_field.empty?
+                        raw_data << "#{Yajl.dump(record)}\n"
+                    elsif record.key?(@message_field)
+                        line = record[@message_field].chomp
+                        raw_data << "#{line}\n"
+                    end
+                end
+                raw_data = raw_data.chomp
+                unless raw_data.empty?
+                    upload_blob(raw_data, metadata)
+                end
+                @last_azure_storage_path = @azure_storage_path
+            else
+                tmp = Tempfile.new("azure-")
+                begin
+                    @compressor.compress(chunk, tmp)
+                    tmp.close
+                    generate_log_name(metadata, @current_index)
+                    if @last_azure_storage_path != @azure_storage_path
+                        @current_index = 0
+                        generate_log_name(metadata, @current_index)
+                    end
+                    log.debug "Start uploading temp file: #{tmp.path}"
+                    content = File.open(tmp.path, 'rb') { |file| file.read }
+                    upload_blob(content, metadata)
+                    @last_azure_storage_path = @azure_storage_path
+                ensure
+                    tmp.unlink
                 end
             end
-            raw_data = raw_data.chomp
-            unless raw_data.empty?
-                upload_blob(raw_data, metadata)
-            end
-            @last_azure_storage_path = @azure_storage_path
 
         end
 
@@ -157,7 +174,7 @@ module Fluent::Plugin
                 "%{time_slice}" => time_slice,
                 "%{index}" => index,
                 "%{uuid_flush}" => uuid_random,
-                "%{file_extension}" => @file_extension
+                "%{file_extension}" => @final_file_extension
             }
             storage_path = @azure_object_key_format.gsub(%r(%{[^}]+}), values_for_object_key)
             extracted_path = extract_placeholders(storage_path, metadata)
@@ -307,7 +324,7 @@ module Fluent::Plugin
         def append_blob_block(blob_path, content, position)
             log.debug "azurestorage_gen2: append_blob_block.start: Append blob ('#{blob_path}') called with position #{position}"
             datestamp = create_request_date
-            headers = {:"x-ms-version" =>  ABFS_API_VERSION,  :"x-ms-date" => datestamp, :"x-ms-content-type" => "text/plain"}
+            headers = {:"x-ms-version" =>  ABFS_API_VERSION,  :"x-ms-date" => datestamp, :"x-ms-content-type" => "#{@blob_content_type}"}
             params = {:action => "append", :position => "#{position}"}
             auth_header = create_auth_header("patch", datestamp, "#{@azure_container}#{blob_path}", headers, params)
             headers[:Authorization] = auth_header
