@@ -163,6 +163,10 @@ The [fluent-mixin-config-placeholders](https://github.com/tagomoris/fluent-mixin
 azure_object_key_format %{path}/events/ts=%{time_slice}/events_%{index}-%{hostname}.%{file_extension}
 ```
 
+### file_extension
+
+File extension for the uploaded files. Only uses if `store_as` is not set, or set as `none`
+
 ### format
 
 Change one line format in the Azure Storage object. Supported formats are 'out_file', 'json', 'ltsv' and 'single_value'.
@@ -220,6 +224,10 @@ my log2
 ```
 
 You can change key name by "message_key" option.
+
+### store_as
+
+The format of the uploaded files on Azure storage. Possible values: `none`, `gzip`, `text`, `json`
 
 ### path
 
