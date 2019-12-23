@@ -260,6 +260,7 @@ module Fluent::Plugin
             access_token=`az account get-access-token --resource https://storage.azure.com/ --query accessToken -o tsv`
             log.debug "azurestorage_gen2: Token response: #{access_token}"
             @azure_access_token = access_token
+        end
 
         private
         def ensure_container
