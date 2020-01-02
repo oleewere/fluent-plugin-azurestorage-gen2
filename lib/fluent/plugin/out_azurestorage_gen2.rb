@@ -124,7 +124,6 @@ module Fluent::Plugin
                         raw_data << "#{line}\n"
                     end
                 end
-                raw_data = raw_data.chomp
                 unless raw_data.empty?
                     upload_blob(raw_data, metadata)
                 end
