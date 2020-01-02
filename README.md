@@ -117,6 +117,10 @@ Azure Storage Container name
 
 This plugin create container if not exist when you set 'auto_create_container' to true.
 
+### skip_container_check
+
+You can skip the initial container listing (and container creation) operations at startup. That can be useful if the user is not allowed to perform these operations.
+
 ### azure_object_key_format
 
 The format of Azure Storage object keys. You can use several built-in variables:

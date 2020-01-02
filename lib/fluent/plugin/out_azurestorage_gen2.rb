@@ -33,6 +33,7 @@ module Fluent::Plugin
         config_param :file_extension, :string, :default => "log"
         config_param :store_as, :string, :default => "none"
         config_param :auto_create_container, :bool, :default => false
+        config_param :skip_container_check, :bool, :default => false
         config_param :format, :string, :default => "out_file"
         config_param :time_slice_format, :string, :default => '%Y%m%d'
         config_param :command_parameter, :string, :default => nil
@@ -100,7 +101,9 @@ module Fluent::Plugin
 
         def start
             setup_access_token
-            ensure_container
+            if !@skip_container_check
+                ensure_container
+            end
             super
         end
 
