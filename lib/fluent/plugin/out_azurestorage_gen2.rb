@@ -115,6 +115,11 @@ module Fluent::Plugin
             super
         end
 
+        def format(tag, time, record)
+            r = inject_values_to_record(tag, time, record)
+            @formatter.format(tag, time, r)
+        end
+
         def write(chunk)
             metadata = chunk.metadata
             if @store_as.nil? || @store_as == "none"
@@ -165,11 +170,6 @@ module Fluent::Plugin
                 create_blob(@azure_storage_path)
             end
             append_blob(content, metadata, existing_content_length)
-        end
-
-        def format(tag, time, record)
-            r = inject_values_to_record(tag, time, record)
-            @formatter.format(tag, time, r)
         end
 
         private
