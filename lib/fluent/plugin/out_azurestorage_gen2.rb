@@ -58,13 +58,17 @@ module Fluent::Plugin
             compat_parameters_convert(conf, :buffer, :formatter, :inject)
             super
 
-            begin
-                @compressor = COMPRESSOR_REGISTRY.lookup(@store_as).new(:buffer_type => @buffer_type, :log => log)
-            rescue => e
-                log.warn "#{@store_as} not found. Use 'text' instead"
-                @compressor = TextCompressor.new
+            if @store_as.nil? || @store_as == "none"
+                log.info "azurestorage_gen2: Compression is disabled (store_as: #{@store_as})"
+            else
+                begin
+                    @compressor = COMPRESSOR_REGISTRY.lookup(@store_as).new(:buffer_type => @buffer_type, :log => log)
+                rescue => e
+                    log.warn "#{@store_as} not found. Use 'text' instead"
+                    @compressor = TextCompressor.new
+                end
+                @compressor.configure(conf)
             end
-            @compressor.configure(conf)
 
             @formatter = formatter_create
       
@@ -85,11 +89,15 @@ module Fluent::Plugin
             @azure_storage_path = ''
             @last_azure_storage_path = ''
             @current_index = 0
-            if @store_as.nil? || @store_as == "none"
+            if @store_as.nil? || @store_as == "none" || @store_as == "text"
                 @blob_content_type = "text/plain"
+            else
+                @blob_content_type = "application/octet-stream"
+            end
+
+            if @store_as.nil? || @store_as == "none"
                 @final_file_extension = @file_extension
             else
-                @blob_content_type = @compressor.content_type
                 @final_file_extension = @compressor.ext
             end
 
@@ -244,7 +252,7 @@ module Fluent::Plugin
             params = { :"api-version" => ACCESS_TOKEN_API_VERSION, :resource => "https://storage.azure.com/"}
             headers = {:"Content-Type" => "application/x-www-form-urlencoded"}
             content = "grant_type=client_credentials&client_id=#{@azure_oauth_app_id}&client_secret=#{@azure_oauth_secret}&resource=https://storage.azure.com/"
-            request = Typhoeus::Request.new("https://login.microsoftonline.com/#{@azure_oauth_tenant_id}/oauth2/token", :body => content, :headers => headers, verbose: true)
+            request = Typhoeus::Request.new("https://login.microsoftonline.com/#{@azure_oauth_tenant_id}/oauth2/token", :body => content, :headers => headers)
             request.on_complete do |response|
                 if response.success?
                   data = JSON.parse(response.body)
@@ -314,7 +322,7 @@ module Fluent::Plugin
         private
         def create_blob(blob_path)
             datestamp = create_request_date
-            headers = {:"x-ms-version" =>  ABFS_API_VERSION, :"x-ms-date" => datestamp,:"Content-Length" => "0", :"Content-Type" => "application/json"}
+            headers = {:"x-ms-version" =>  ABFS_API_VERSION, :"x-ms-date" => datestamp,:"Content-Length" => "0", :"Content-Type" => "#{@blob_content_type}"}
             params = {:resource => "file", :recursive => "false"}
             auth_header = create_auth_header("put", datestamp, "#{@azure_container}#{blob_path}", headers, params)
             headers[:Authorization] = auth_header
@@ -337,7 +345,7 @@ module Fluent::Plugin
         def append_blob_block(blob_path, content, position)
             log.debug "azurestorage_gen2: append_blob_block.start: Append blob ('#{blob_path}') called with position #{position}"
             datestamp = create_request_date
-            headers = {:"x-ms-version" =>  ABFS_API_VERSION,  :"x-ms-date" => datestamp, :"x-ms-content-type" => "#{@blob_content_type}", :"Content-Length" => content.length}
+            headers = {:"x-ms-version" =>  ABFS_API_VERSION,  :"x-ms-date" => datestamp, :"Content-Type" => "#{@blob_content_type}", :"Content-Length" => content.length}
             params = {:action => "append", :position => "#{position}"}
             auth_header = create_auth_header("patch", datestamp, "#{@azure_container}#{blob_path}", headers, params)
             headers[:Authorization] = auth_header
