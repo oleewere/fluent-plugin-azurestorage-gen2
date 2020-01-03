@@ -89,11 +89,6 @@ module Fluent::Plugin
             @azure_storage_path = ''
             @last_azure_storage_path = ''
             @current_index = 0
-            if @store_as.nil? || @store_as == "none" || @store_as == "text"
-                @blob_content_type = "text/plain"
-            else
-                @blob_content_type = "application/octet-stream"
-            end
 
             if @store_as.nil? || @store_as == "none"
                 @final_file_extension = @file_extension
@@ -239,7 +234,7 @@ module Fluent::Plugin
                 if response.success?
                   data = JSON.parse(response.body)
                   log.debug "azurestorage_gen2: Token response: #{data}"
-                  @azure_access_token = data["access_token"]
+                  @azure_access_token = data["access_token"].chomp
                 else
                     raise Fluent::UnrecoverableError, "Failed to acquire access token. #{response.code}: #{response.body}"
                 end
@@ -257,7 +252,7 @@ module Fluent::Plugin
                 if response.success?
                   data = JSON.parse(response.body)
                   log.debug "azurestorage_gen2: Token response: #{data}"
-                  @azure_access_token = data["access_token"]
+                  @azure_access_token = data["access_token"].chomp
                 else
                     raise Fluent::UnrecoverableError, "Failed to acquire access token. #{response.code}: #{response.body}"
                 end
@@ -269,7 +264,7 @@ module Fluent::Plugin
         def acquire_access_token_by_az
             access_token=`az account get-access-token --resource https://storage.azure.com/ --query accessToken -o tsv`
             log.debug "azurestorage_gen2: Token response: #{access_token}"
-            @azure_access_token = access_token
+            @azure_access_token = access_token.chomp
         end
 
         private
@@ -322,7 +317,7 @@ module Fluent::Plugin
         private
         def create_blob(blob_path)
             datestamp = create_request_date
-            headers = {:"x-ms-version" =>  ABFS_API_VERSION, :"x-ms-date" => datestamp,:"Content-Length" => "0", :"Content-Type" => "#{@blob_content_type}"}
+            headers = {:"x-ms-version" =>  ABFS_API_VERSION, :"x-ms-date" => datestamp,:"Content-Length" => "0", :"Content-Type" => "text/plain"}
             params = {:resource => "file", :recursive => "false"}
             auth_header = create_auth_header("put", datestamp, "#{@azure_container}#{blob_path}", headers, params)
             headers[:Authorization] = auth_header
@@ -345,11 +340,11 @@ module Fluent::Plugin
         def append_blob_block(blob_path, content, position)
             log.debug "azurestorage_gen2: append_blob_block.start: Append blob ('#{blob_path}') called with position #{position}"
             datestamp = create_request_date
-            headers = {:"x-ms-version" =>  ABFS_API_VERSION,  :"x-ms-date" => datestamp, :"Content-Type" => "#{@blob_content_type}", :"Content-Length" => content.length}
+            headers = {:"x-ms-version" =>  ABFS_API_VERSION,  :"x-ms-date" => datestamp, :"Content-Length" => content.length}
             params = {:action => "append", :position => "#{position}"}
             auth_header = create_auth_header("patch", datestamp, "#{@azure_container}#{blob_path}", headers, params)
             headers[:Authorization] = auth_header
-            request = Typhoeus::Request.new("https://#{azure_storage_account}#{URL_DOMAIN_SUFFIX}/#{@azure_container}#{blob_path}", :method => :patch, :body => content, :params => params, :headers=> headers)
+            request = Typhoeus::Request.new("https://#{azure_storage_account}#{URL_DOMAIN_SUFFIX}/#{@azure_container}#{blob_path}", :method => :patch, :headers=> headers, :params => params, :body => content)
             request.on_complete do |response|
                 if response.success?
                     log.debug "azurestorage_gen2: Blob '#{blob_path}' has been appended, response code: #{response.code}"
