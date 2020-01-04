@@ -105,7 +105,7 @@ OAuth client secret that is used for OAuth based authentication. Required if OAu
 
 ### azure_oauth_refresh_interval
 
-OAuth2 access token refreshment interval in second. Only applies when MSI / OAuth authentication is used.
+OAuth2 access token refreshment interval in second. Only applies when MSI / OAuth authentication is used. (default value is 59 minutes)
 
 ### azure_oauth_use_azure_cli (Preview)
 
