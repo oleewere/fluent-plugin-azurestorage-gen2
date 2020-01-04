@@ -27,7 +27,7 @@ module Fluent::Plugin
         config_param :azure_oauth_secret, :string, :default => nil, :secret => true
         config_param :azure_oauth_tenant_id, :string, :default => nil
         config_param :azure_oauth_use_azure_cli, :bool, :default => false
-        config_param :azure_oauth_refresh_interval, :integer, :default => 60 * 60 # one hour
+        config_param :azure_oauth_refresh_interval, :integer, :default => 60 * 59 # 59 minutes, do not wait one hour
         config_param :azure_container, :string, :default => nil
         config_param :azure_object_key_format, :string, :default => "%{path}%{time_slice}_%{index}.%{file_extension}"
         config_param :file_extension, :string, :default => "log"
