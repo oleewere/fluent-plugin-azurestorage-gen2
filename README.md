@@ -37,6 +37,7 @@ $ gem install fluent-plugin-azurestorage-gen2
   file_extension                   log
   path                             "/cluster-logs/myfolder/${tag[1]}-#{Socket.gethostname}-%M"
   auto_create_container            true
+  format                           single_value
   <buffer tag,time>
     @type file
     path /var/log/fluent/azurestorage-buffer
@@ -63,6 +64,7 @@ $ gem install fluent-plugin-azurestorage-gen2
   file_extension                   log
   path                             "/cluster-logs/myfolder/${tag[1]}-#{Socket.gethostname}-%M"
   auto_create_container            true
+  format                           single_value
   <buffer tag,time>
     @type file
     path /var/log/fluent/azurestorage-buffer
@@ -173,13 +175,13 @@ azure_object_key_format %{path}/events/ts=%{time_slice}/events_%{index}-%{hostna
 
 ### file_extension
 
-File extension for the uploaded files. Only uses if `store_as` is not set, or set as `none`
+File extension for the uploaded files. Only used if `store_as` is not set, or set as `none`
 
 ### store_as
 
 Archive format on Azure Storage. You can use following types:
 
-- none (default - no tmp file creation for log processing)
+- none (default - no tmp file creation for log processing, use with json or single value format)
 - gzip
 - json
 - text

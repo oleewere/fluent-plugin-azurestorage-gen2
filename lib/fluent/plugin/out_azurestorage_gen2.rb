@@ -37,7 +37,6 @@ module Fluent::Plugin
         config_param :format, :string, :default => "out_file"
         config_param :time_slice_format, :string, :default => '%Y%m%d'
         config_param :command_parameter, :string, :default => nil
-        config_param :message_field, :string, :default => nil
 
         DEFAULT_FORMAT_TYPE = "out_file"
         URL_DOMAIN_SUFFIX = '.dfs.core.windows.net'
@@ -118,21 +117,14 @@ module Fluent::Plugin
         def write(chunk)
             metadata = chunk.metadata
             if @store_as.nil? || @store_as == "none"
-                raw_data=''
                 generate_log_name(metadata, @current_index)
                 if @last_azure_storage_path != @azure_storage_path
                     @current_index = 0
                     generate_log_name(metadata, @current_index)
                 end
-                chunk.each do |emit_time, record|
-                    if @message_field.nil? || @message_field.empty?
-                        raw_data << "#{Yajl.dump(record)}\n"
-                    elsif record.key?(@message_field)
-                        line = record[@message_field].chomp
-                        raw_data << "#{line}\n"
-                    end
-                end
+                raw_data = chunk.read
                 unless raw_data.empty?
+                    log.debug "azurestorage_gen2: processing raw data", chunk_id: dump_unique_id_hex(chunk.unique_id)
                     upload_blob(raw_data, metadata)
                 end
                 @last_azure_storage_path = @azure_storage_path
