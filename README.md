@@ -34,9 +34,10 @@ $ gem install fluent-plugin-azurestorage-gen2
   azure_object_key_format          %{path}-%{index}.%{file_extension}
   azure_oauth_refresh_interval     3600
   time_slice_format                %Y%m%d-%H
-  file_extension                   log
+  file_extension                   log # only used with store_as none
   path                             "/cluster-logs/myfolder/${tag[1]}-#{Socket.gethostname}-%M"
   auto_create_container            true
+  store_as                         gzip
   format                           single_value
   <buffer tag,time>
     @type file
@@ -61,8 +62,8 @@ $ gem install fluent-plugin-azurestorage-gen2
   azure_oauth_secret               <my client secret>
   azure_oauth_refresh_interval     3600
   time_slice_format                %Y%m%d-%H
-  file_extension                   log
   path                             "/cluster-logs/myfolder/${tag[1]}-#{Socket.gethostname}-%M"
+  store_as                         gzip
   auto_create_container            true
   format                           single_value
   <buffer tag,time>
