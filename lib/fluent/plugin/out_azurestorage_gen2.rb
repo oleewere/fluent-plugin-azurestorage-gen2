@@ -128,12 +128,14 @@ module Fluent::Plugin
                     log.debug "azurestorage_gen2: processing raw data", chunk_id: dump_unique_id_hex(chunk.unique_id)
                     upload_blob(raw_data, metadata)
                 end
+                chunk.close rescue nil
                 @last_azure_storage_path = @azure_storage_path
             else
                 tmp = Tempfile.new("azure-")
+                tmp.binmode
                 begin
                     @compressor.compress(chunk, tmp)
-                    tmp.close
+                    tmp.rewind
                     generate_log_name(metadata, @current_index)
                     if @last_azure_storage_path != @azure_storage_path
                         @current_index = 0
@@ -144,7 +146,7 @@ module Fluent::Plugin
                     upload_blob(content, metadata)
                     @last_azure_storage_path = @azure_storage_path
                 ensure
-                    tmp.unlink
+                    tmp.close(true) rescue nil
                 end
             end
 
