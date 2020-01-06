@@ -121,7 +121,11 @@ This plugin create container if not exist when you set 'auto_create_container' t
 
 ### skip_container_check
 
-You can skip the initial container listing (and container creation) operations at startup. That can be useful if the user is not allowed to perform these operations.
+You can skip the initial container listing (and container creation) operations at startup. That can be useful if the user is not allowed to perform this operation.
+
+### enable_retry
+
+If you set this option, operations can be retried in the buffer. Default value is false. (Currently only flush command is supported)
 
 ### azure_object_key_format
 
