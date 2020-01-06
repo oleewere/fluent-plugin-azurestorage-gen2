@@ -34,6 +34,7 @@ module Fluent::Plugin
         config_param :store_as, :string, :default => "none"
         config_param :auto_create_container, :bool, :default => false
         config_param :skip_container_check, :bool, :default => false
+        config_param :enable_retry, :bool, :default => false
         config_param :format, :string, :default => "out_file"
         config_param :time_slice_format, :string, :default => '%Y%m%d'
         config_param :command_parameter, :string, :default => nil
@@ -138,7 +139,7 @@ module Fluent::Plugin
                         @current_index = 0
                         generate_log_name(metadata, @current_index)
                     end
-                    log.debug "Start uploading temp file: #{tmp.path}"
+                    log.debug "azurestorage_gen2: Start uploading temp file: #{tmp.path}"
                     content = File.open(tmp.path, 'rb') { |file| file.read }
                     upload_blob(content, metadata)
                     @last_azure_storage_path = @azure_storage_path
@@ -151,7 +152,7 @@ module Fluent::Plugin
 
         private
         def upload_blob(content, metadata)
-            log.debug "azurestorage_gen2:  Uploading blob: #{@azure_storage_path}"
+            log.debug "azurestorage_gen2: Uploading blob: #{@azure_storage_path}"
             existing_content_length = get_blob_properties(@azure_storage_path)
             if existing_content_length == 0
                 create_blob(@azure_storage_path)
@@ -298,7 +299,7 @@ module Fluent::Plugin
                 if response.success?
                     log.debug "azurestorage_gen2: Container '#{@azure_container}' created, response code: #{response.code}"
                 elsif response.timed_out?
-                    raise Fluent::UnrecoverableError,  "Creating container '#{@azure_container}' request timed out."
+                    raise Fluent::UnrecoverableError, "Creating container '#{@azure_container}' request timed out."
                 else
                     raise Fluent::UnrecoverableError, "Creating container request failed - code: #{response.code}, body: #{response.body}, headers: #{response.headers}"
                 end
@@ -330,7 +331,7 @@ module Fluent::Plugin
 
         private
         def append_blob_block(blob_path, content, position)
-            log.debug "azurestorage_gen2: append_blob_block.start: Append blob ('#{blob_path}') called with position #{position}"
+            log.debug "azurestorage_gen2: append_blob_block.start: Append blob ('#{blob_path}') called with position #{position} (content length: #{content.length}, end position: #{position + content.length})"
             datestamp = create_request_date
             headers = {:"x-ms-version" =>  ABFS_API_VERSION,  :"x-ms-date" => datestamp, :"Content-Length" => content.length}
             params = {:action => "append", :position => "#{position}"}
@@ -368,7 +369,7 @@ module Fluent::Plugin
                 elsif response.timed_out?
                     raise Fluent::UnrecoverableError,  "Bloub '#{blob_path}' flush request timed out."
                 else
-                    raise Fluent::UnrecoverableError, "Blob flush request failed - code: #{response.code}, body: #{response.body}, headers: #{response.headers}"
+                    raise_error "Blob flush request failed - code: #{response.code}, body: #{response.body}, headers: #{response.headers}"
                 end
             end
             request.run
@@ -506,6 +507,15 @@ module Fluent::Plugin
             Time.now.strftime('%a, %e %b %y %H:%M:%S %Z')
         end
 
+        private
+        def raise_error(error_message)
+            if @enable_retry
+                raise BlobOperationError, error_message
+            else
+                raise Fluent::UnrecoverableError,  error_message
+            end
+        end
+
         def uuid_random
             require 'uuidtools'
             ::UUIDTools::UUID.random_create.to_s
@@ -620,6 +630,12 @@ module Fluent::Plugin
         def initialize(message="Default message", status_code=0)
           @status_code = status_code
           super(message)
+        end
+    end
+
+    class BlobOperationError < StandardError
+        def initialize(message="Default message")
+            super(message)
         end
     end
 end
