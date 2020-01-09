@@ -126,7 +126,7 @@ You can skip the initial container listing (and container creation) operations a
 
 ### enable_retry
 
-If you set this option, operations can be retried in the buffer. Default value is false. (Currently only flush command is supported)
+If you set this option, operations can be retried in the buffer. Default value is false. (Used for create/update/flush Blob operations)
 
 ### azure_object_key_format
 

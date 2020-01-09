@@ -321,11 +321,11 @@ module Fluent::Plugin
                 if response.success?
                     log.debug "azurestorage_gen2: Blob '#{blob_path}' has been created, response code: #{response.code}"
                 elsif response.timed_out?
-                    raise Fluent::UnrecoverableError,  "Creating blob '#{blob_path}' request timed out."
+                    raise_error  "Creating blob '#{blob_path}' request timed out."
                 elsif response.code == 409
                     log.debug "azurestorage_gen2: Blob already exists: #{blob_path}"
                 else
-                    raise Fluent::UnrecoverableError, "Creating blob '#{blob_path}' request failed - code: #{response.code}, body: #{response.body}, headers: #{response.headers}"
+                    raise_error "Creating blob '#{blob_path}' request failed - code: #{response.code}, body: #{response.body}, headers: #{response.headers}"
                 end
             end
             request.run
@@ -344,13 +344,13 @@ module Fluent::Plugin
                 if response.success?
                     log.debug "azurestorage_gen2: Blob '#{blob_path}' has been appended, response code: #{response.code}"
                 elsif response.timed_out?
-                    raise Fluent::UnrecoverableError,  "Appending blob #{blob_path}' request timed out."
+                    raise_error  "Appending blob #{blob_path}' request timed out."
                 elsif response.code == 404
                     raise AppendBlobResponseError.new("Blob '#{blob_path}' has not found. Error code: #{response.code}", 404)
                 elsif response.code == 409
                     raise AppendBlobResponseError.new("Blob '#{blob_path}' has conflict. Error code: #{response.code}", 409)
                 else
-                    raise Fluent::UnrecoverableError, "Appending blob '#{blob_path}' request failed - code: #{response.code}, body: #{response.body}, headers: #{response.headers}"
+                    raise_error "Appending blob '#{blob_path}' request failed - code: #{response.code}, body: #{response.body}, headers: #{response.headers}"
                 end
             end
             request.run
@@ -369,7 +369,7 @@ module Fluent::Plugin
                 if response.success?
                     log.debug "azurestorage_gen2: Blob '#{blob_path}' flush was successful, response code: #{response.code}"
                 elsif response.timed_out?
-                    raise Fluent::UnrecoverableError,  "Bloub '#{blob_path}' flush request timed out."
+                    raise_error  "Bloub '#{blob_path}' flush request timed out."
                 else
                     raise_error "Blob flush request failed - code: #{response.code}, body: #{response.body}, headers: #{response.headers}"
                 end
@@ -391,12 +391,12 @@ module Fluent::Plugin
                   log.debug "azurestorage_gen2: Get blob properties for '#{blob_path}', response headers: #{response.headers}"
                   content_length = response.headers['Content-Length'].to_i
                 elsif response.timed_out?
-                    raise Fluent::UnrecoverableError,  "Get blob properties '#{blob_path}' request timed out."
+                    raise_error  "Get blob properties '#{blob_path}' request timed out."
                 elsif response.code == 404
                     log.debug "azurestorage_gen2: Blob '#{blob_path}' does not exist. Creating it if needed..."
                     content_length = 0
                 else
-                    raise Fluent::UnrecoverableError, "Get blob properties '#{blob_path}' request failed - code: #{response.code}, body: #{response.body}, headers: #{response.headers}"
+                    raise_error "Get blob properties '#{blob_path}' request failed - code: #{response.code}, body: #{response.body}, headers: #{response.headers}"
                 end
             end
             request.run
