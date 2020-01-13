@@ -128,6 +128,10 @@ You can skip the initial container listing (and container creation) operations a
 
 If you set this option, operations can be retried in the buffer. Default value is false. (Used for create/update/flush Blob operations)
 
+### url_domain_suffix
+
+The defaultt `url_domain_suffix` is `.dfs.core.windows.net`, you can override this in case of private endpoints.
+
 ### azure_object_key_format
 
 The format of Azure Storage object keys. You can use several built-in variables:

@@ -35,12 +35,12 @@ module Fluent::Plugin
         config_param :auto_create_container, :bool, :default => false
         config_param :skip_container_check, :bool, :default => false
         config_param :enable_retry, :bool, :default => false
+        config_param :url_domain_suffix, :string, :default => '.dfs.core.windows.net'
         config_param :format, :string, :default => "out_file"
         config_param :time_slice_format, :string, :default => '%Y%m%d'
         config_param :command_parameter, :string, :default => nil
 
         DEFAULT_FORMAT_TYPE = "out_file"
-        URL_DOMAIN_SUFFIX = '.dfs.core.windows.net'
         ACCESS_TOKEN_API_VERSION = "2018-02-01"
         ABFS_API_VERSION = "2018-11-09"
         AZURE_BLOCK_SIZE_LIMIT = 4 * 1024 * 1024 - 1
@@ -269,7 +269,7 @@ module Fluent::Plugin
             params = {:resource => "filesystem" }
             auth_header = create_auth_header("head", datestamp, "#{@azure_container}", headers, params)
             headers[:Authorization] = auth_header
-            request = Typhoeus::Request.new("https://#{azure_storage_account}#{URL_DOMAIN_SUFFIX}/#{@azure_container}", :method => :head, :params => params, :headers=> headers)
+            request = Typhoeus::Request.new("https://#{azure_storage_account}#{@url_domain_suffix}/#{@azure_container}", :method => :head, :params => params, :headers=> headers)
             request.on_complete do |response|
                 if response.success?
                   log.info "azurestorage_gen2: Container '#{@azure_container}' exists."
@@ -296,7 +296,7 @@ module Fluent::Plugin
             params = {:resource => "filesystem" }
             auth_header = create_auth_header("put", datestamp, "#{@azure_container}", headers, params)
             headers[:Authorization] = auth_header
-            request = Typhoeus::Request.new("https://#{azure_storage_account}#{URL_DOMAIN_SUFFIX}/#{@azure_container}", :method => :put, :params => params, :headers=> headers)
+            request = Typhoeus::Request.new("https://#{azure_storage_account}#{@url_domain_suffix}/#{@azure_container}", :method => :put, :params => params, :headers=> headers)
             request.on_complete do |response|
                 if response.success?
                     log.debug "azurestorage_gen2: Container '#{@azure_container}' created, response code: #{response.code}"
@@ -316,7 +316,7 @@ module Fluent::Plugin
             params = {:resource => "file", :recursive => "false"}
             auth_header = create_auth_header("put", datestamp, "#{@azure_container}#{blob_path}", headers, params)
             headers[:Authorization] = auth_header
-            request = Typhoeus::Request.new("https://#{azure_storage_account}#{URL_DOMAIN_SUFFIX}/#{@azure_container}#{blob_path}", :method => :put, :params => params, :headers=> headers)
+            request = Typhoeus::Request.new("https://#{azure_storage_account}#{@url_domain_suffix}/#{@azure_container}#{blob_path}", :method => :put, :params => params, :headers=> headers)
             request.on_complete do |response|
                 if response.success?
                     log.debug "azurestorage_gen2: Blob '#{blob_path}' has been created, response code: #{response.code}"
@@ -339,7 +339,7 @@ module Fluent::Plugin
             params = {:action => "append", :position => "#{position}"}
             auth_header = create_auth_header("patch", datestamp, "#{@azure_container}#{blob_path}", headers, params)
             headers[:Authorization] = auth_header
-            request = Typhoeus::Request.new("https://#{azure_storage_account}#{URL_DOMAIN_SUFFIX}/#{@azure_container}#{blob_path}", :method => :patch, :headers=> headers, :params => params, :body => content)
+            request = Typhoeus::Request.new("https://#{azure_storage_account}#{@url_domain_suffix}/#{@azure_container}#{blob_path}", :method => :patch, :headers=> headers, :params => params, :body => content)
             request.on_complete do |response|
                 if response.success?
                     log.debug "azurestorage_gen2: Blob '#{blob_path}' has been appended, response code: #{response.code}"
@@ -364,7 +364,7 @@ module Fluent::Plugin
             params = {:action => "flush", :position => "#{position}"}
             auth_header = create_auth_header("patch", datestamp, "#{@azure_container}#{blob_path}",headers, params)
             headers[:Authorization] = auth_header
-            request = Typhoeus::Request.new("https://#{azure_storage_account}#{URL_DOMAIN_SUFFIX}/#{@azure_container}#{blob_path}", :method => :patch, :params => params, :headers=> headers)
+            request = Typhoeus::Request.new("https://#{azure_storage_account}#{@url_domain_suffix}/#{@azure_container}#{blob_path}", :method => :patch, :params => params, :headers=> headers)
             request.on_complete do |response|
                 if response.success?
                     log.debug "azurestorage_gen2: Blob '#{blob_path}' flush was successful, response code: #{response.code}"
@@ -385,7 +385,7 @@ module Fluent::Plugin
             content_length = -1
             auth_header = create_auth_header("head", datestamp, "#{@azure_container}#{blob_path}", headers, params)
             headers[:Authorization] = auth_header
-            request = Typhoeus::Request.new("https://#{azure_storage_account}#{URL_DOMAIN_SUFFIX}/#{@azure_container}#{blob_path}", :method => :head, :params => params, :headers=> headers)
+            request = Typhoeus::Request.new("https://#{azure_storage_account}#{@url_domain_suffix}/#{@azure_container}#{blob_path}", :method => :head, :params => params, :headers=> headers)
             request.on_complete do |response|
                 if response.success?
                   log.debug "azurestorage_gen2: Get blob properties for '#{blob_path}', response headers: #{response.headers}"
