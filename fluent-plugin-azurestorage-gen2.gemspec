@@ -4,7 +4,7 @@ $:.push File.expand_path('../lib', __FILE__)
 Gem::Specification.new do |gem|
   gem.name = "fluent-plugin-azurestorage-gen2"
   gem.description = "Azure Storage output plugin for Fluentd event collector"
-  gem.license = "Apache-2.0"
+  gem.license = "MIT License"
   gem.homepage = "https://github.com/oleewere/fluent-plugin-azurestorage-gen2"
   gem.summary = gem.description
   gem.version = File.read("VERSION").strip
