@@ -35,6 +35,7 @@ module Fluent::Plugin
         config_param :auto_create_container, :bool, :default => false
         config_param :skip_container_check, :bool, :default => false
         config_param :enable_retry, :bool, :default => false
+        config_param :startup_fail_on_error, :bool, :default => true
         config_param :url_domain_suffix, :string, :default => '.dfs.core.windows.net'
         config_param :format, :string, :default => "out_file"
         config_param :time_slice_format, :string, :default => '%Y%m%d'
@@ -186,7 +187,19 @@ module Fluent::Plugin
         def setup_access_token
             if @azure_storage_access_key.nil?
                 @get_token_lock = Concurrent::ReadWriteLock.new
-                acquire_access_token
+                if @startup_fail_on_error
+                    acquire_access_token
+                else
+                    while true
+                        begin
+                            acquire_access_token
+                            break
+                        rescue Exception => e
+                            log.warn("#{e.message}, acquired token failed, wait 20 seconds until next retry.")
+                            sleep 20
+                        end
+                    end
+                end
                 if @azure_oauth_refresh_interval > 0
                     log.info("azurestorage_gen2: Start getting access token every #{@azure_oauth_refresh_interval} seconds.")
                     @get_token_task = Concurrent::TimerTask.new(
@@ -205,6 +218,9 @@ module Fluent::Plugin
         end
 
         def acquire_access_token
+            if true
+                raise Fluent::UnrecoverableError, "It's over"
+            end
             if !@azure_instance_msi.nil?
                 acquire_access_token_msi
             elsif !@azure_oauth_app_id.nil? and !@azure_oauth_secret.nil? and !@azure_oauth_tenant_id.nil?
@@ -220,7 +236,7 @@ module Fluent::Plugin
         # https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/tutorial-linux-vm-access-storage#get-an-access-token-and-use-it-to-call-azure-storage
         private
         def acquire_access_token_msi
-            params = { :"api-version" => ACCESS_TOKEN_API_VERSION, :resource => "https://storage.azure.com/" }
+            params = { :"api-version" => ACCESS_TOKEN_API_VERSION, :resource => "https://storage.azures.com/" }
             unless @azure_instance_msi.nil?
                 params[:msi_res_id] = @azure_instance_msi
             end

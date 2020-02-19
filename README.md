@@ -128,6 +128,10 @@ You can skip the initial container listing (and container creation) operations a
 
 If you set this option, operations can be retried in the buffer. Default value is false. (Used for create/update/flush Blob operations)
 
+### startup_fail_on_error
+
+If that setting is disabled, the worker won't fail on initialization (getting first access token) error. The default value is true.
+
 ### url_domain_suffix
 
 The defaultt `url_domain_suffix` is `.dfs.core.windows.net`, you can override this in case of private endpoints.
