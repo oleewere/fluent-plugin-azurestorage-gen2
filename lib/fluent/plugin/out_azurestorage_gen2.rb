@@ -218,9 +218,6 @@ module Fluent::Plugin
         end
 
         def acquire_access_token
-            if true
-                raise Fluent::UnrecoverableError, "It's over"
-            end
             if !@azure_instance_msi.nil?
                 acquire_access_token_msi
             elsif !@azure_oauth_app_id.nil? and !@azure_oauth_secret.nil? and !@azure_oauth_tenant_id.nil?
