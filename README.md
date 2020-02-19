@@ -124,6 +124,10 @@ This plugin create container if not exist when you set 'auto_create_container' t
 
 You can skip the initial container listing (and container creation) operations at startup. That can be useful if the user is not allowed to perform this operation.
 
+### failsafe_container_check
+
+On startup, a list operation is called against a container, if that does not exists, the app tries to create it if `auto_create_container` is enabled. If that option is enabled, the application won't fail if any of these operations are failed. (Can be useful the right roles are not set on your container, but set for blobs)
+
 ### enable_retry
 
 If you set this option, operations can be retried in the buffer. Default value is false. (Used for create/update/flush Blob operations)

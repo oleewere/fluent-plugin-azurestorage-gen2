@@ -34,6 +34,7 @@ module Fluent::Plugin
         config_param :store_as, :string, :default => "none"
         config_param :auto_create_container, :bool, :default => false
         config_param :skip_container_check, :bool, :default => false
+        config_param :failsafe_container_check, :bool, :default => false
         config_param :enable_retry, :bool, :default => false
         config_param :startup_fail_on_error, :bool, :default => true
         config_param :url_domain_suffix, :string, :default => '.dfs.core.windows.net'
@@ -106,7 +107,15 @@ module Fluent::Plugin
         def start
             setup_access_token
             if !@skip_container_check
-                ensure_container
+                if @failsafe_container_check
+                    begin
+                        ensure_container
+                    rescue Exception => e
+                        log.warn("#{e.message}, container list/create failsafe is enabled. Continue without those operations.")
+                    end
+                else
+                    ensure_container
+                end
             end
             super
         end
