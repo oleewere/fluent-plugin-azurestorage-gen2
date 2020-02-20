@@ -242,7 +242,7 @@ module Fluent::Plugin
         # https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/tutorial-linux-vm-access-storage#get-an-access-token-and-use-it-to-call-azure-storage
         private
         def acquire_access_token_msi
-            params = { :"api-version" => ACCESS_TOKEN_API_VERSION, :resource => "https://storage.azures.com/" }
+            params = { :"api-version" => ACCESS_TOKEN_API_VERSION, :resource => "https://storage.azure.com/" }
             unless @azure_instance_msi.nil?
                 params[:msi_res_id] = @azure_instance_msi
             end
