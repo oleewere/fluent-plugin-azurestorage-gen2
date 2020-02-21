@@ -21,6 +21,7 @@ Gem::Specification.new do |gem|
   gem.add_runtime_dependency 'typhoeus', '~> 1.0', '>= 1.0.1'
   gem.add_runtime_dependency 'json', '~> 2.1', '>= 2.1.0'
   gem.add_runtime_dependency "yajl-ruby", '~> 1.4'
+  gem.add_runtime_dependency 'concurrent-ruby', '~> 1.1', '>= 1.1.5'
   gem.add_development_dependency 'rake', '~> 12.3', '>= 12.3.1'
   gem.add_development_dependency 'test-unit', '~> 3.3', '>= 3.3.3'
   gem.add_development_dependency 'test-unit-rr', '~> 1.0', '>= 1.0.5'

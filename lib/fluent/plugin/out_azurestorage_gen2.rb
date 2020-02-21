@@ -6,6 +6,7 @@ require 'tempfile'
 require 'time'
 require 'typhoeus'
 require 'fluent/plugin/output'
+require 'concurrent'
 require 'zlib'
 
 module Fluent::Plugin
