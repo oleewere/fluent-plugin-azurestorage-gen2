@@ -41,6 +41,7 @@ module Fluent::Plugin
         config_param :url_domain_suffix, :string, :default => '.dfs.core.windows.net'
         config_param :format, :string, :default => "out_file"
         config_param :time_slice_format, :string, :default => '%Y%m%d'
+        config_param :hex_random_length, :integer, default: 4
         config_param :command_parameter, :string, :default => nil
 
         DEFAULT_FORMAT_TYPE = "out_file"
@@ -75,16 +76,6 @@ module Fluent::Plugin
 
             @formatter = formatter_create
       
-            if @localtime
-              @path_slicer = Proc.new {|path|
-                Time.now.strftime(path)
-              }
-            else
-              @path_slicer = Proc.new {|path|
-                Time.now.utc.strftime(path)
-              }
-            end
-      
             if @azure_container.nil?
               raise Fluent::ConfigError, "azure_container is needed"
             end
@@ -98,7 +89,7 @@ module Fluent::Plugin
             else
                 @final_file_extension = @compressor.ext
             end
-
+            @values_for_object_chunk = {}
         end
 
         def multi_workers_ready?
@@ -127,17 +118,16 @@ module Fluent::Plugin
         end
 
         def write(chunk)
-            metadata = chunk.metadata
             if @store_as.nil? || @store_as == "none"
-                generate_log_name(metadata, @current_index)
+                generate_log_name(chunk, @current_index)
                 if @last_azure_storage_path != @azure_storage_path
                     @current_index = 0
-                    generate_log_name(metadata, @current_index)
+                    generate_log_name(chunk, @current_index)
                 end
                 raw_data = chunk.read
                 unless raw_data.empty?
                     log.debug "azurestorage_gen2: processing raw data", chunk_id: dump_unique_id_hex(chunk.unique_id)
-                    upload_blob(raw_data, metadata)
+                    upload_blob(raw_data, chunk)
                 end
                 chunk.close rescue nil
                 @last_azure_storage_path = @azure_storage_path
@@ -147,51 +137,68 @@ module Fluent::Plugin
                 begin
                     @compressor.compress(chunk, tmp)
                     tmp.rewind
-                    generate_log_name(metadata, @current_index)
+                    generate_log_name(chunk, @current_index)
                     if @last_azure_storage_path != @azure_storage_path
                         @current_index = 0
-                        generate_log_name(metadata, @current_index)
+                        generate_log_name(chunk, @current_index)
                     end
                     log.debug "azurestorage_gen2: Start uploading temp file: #{tmp.path}"
                     content = File.open(tmp.path, 'rb') { |file| file.read }
-                    upload_blob(content, metadata)
+                    upload_blob(content, chunk)
                     @last_azure_storage_path = @azure_storage_path
                 ensure
                     tmp.close(true) rescue nil
                 end
+                @values_for_object_chunk.delete(chunk.unique_id)
             end
 
         end
 
         private
-        def upload_blob(content, metadata)
+        def upload_blob(content, chunk)
             log.debug "azurestorage_gen2: Uploading blob: #{@azure_storage_path}"
             existing_content_length = get_blob_properties(@azure_storage_path)
             if existing_content_length == 0
                 create_blob(@azure_storage_path)
             end
-            append_blob(content, metadata, existing_content_length)
+            append_blob(content, chunk, existing_content_length)
         end
 
         private
-        def generate_log_name(metadata, index)
+        def generate_log_name(chunk, index)
+            metadata = chunk.metadata
             time_slice = if metadata.timekey.nil?
                        ''.freeze
                      else
                        Time.at(metadata.timekey).utc.strftime(@time_slice_format)
                      end
-            path = @path_slicer.call(@path)
-            values_for_object_key = {
-                "%{path}" => path,
-                "%{time_slice}" => time_slice,
+            if @localtime
+                hms_slicer = Time.now.strftime("%H%M%S")
+            else
+                hms_slicer = Time.now.utc.strftime("%H%M%S")
+            end
+
+            @values_for_object_chunk[chunk.unique_id] ||= {
+                "%{hex_random}" => hex_random(chunk),
+            }
+            values_for_object_key_pre = {
+                "%{path}" => @path,
                 "%{index}" => index,
                 "%{uuid_flush}" => uuid_random,
                 "%{file_extension}" => @final_file_extension
             }
-            storage_path = @azure_object_key_format.gsub(%r(%{[^}]+}), values_for_object_key)
-            extracted_path = extract_placeholders(storage_path, metadata)
-            extracted_path = "/" + extracted_path unless extracted_path.start_with?("/")
-            @azure_storage_path = extracted_path
+            values_for_object_key_post = {
+                "%{date_slice}" => time_slice,
+                "%{time_slice}" => time_slice,
+                "%{hms_slice}" => hms_slicer,
+            }.merge!(@values_for_object_chunk[chunk.unique_id])
+            storage_path = @azure_object_key_format.gsub(%r(%{[^}]+})) do |matched_key|
+                values_for_object_key_pre.fetch(matched_key, matched_key)
+            end
+            storage_path = extract_placeholders(storage_path, chunk)
+            storage_path = storage_path.gsub(%r(%{[^}]+}), values_for_object_key_post)
+            storage_path = "/" + storage_path unless storage_path.start_with?("/")
+            @azure_storage_path = storage_path
         end
 
         def setup_access_token
@@ -427,7 +434,7 @@ module Fluent::Plugin
         end
 
         private
-        def append_blob(content, metadata, existing_content_length)
+        def append_blob(content, chunk, existing_content_length)
           position = 0
           log.debug "azurestorage_gen2: append_blob.start: Content size: #{content.length}"
           loop do
@@ -544,6 +551,12 @@ module Fluent::Plugin
         def uuid_random
             require 'uuidtools'
             ::UUIDTools::UUID.random_create.to_s
+        end
+
+        def hex_random(chunk)
+            unique_hex = Fluent::UniqueId.hex(chunk.unique_id)
+            unique_hex.reverse!
+            unique_hex[0...@hex_random_length]
         end
         
         def timekey_to_timeformat(timekey)
