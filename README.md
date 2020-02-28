@@ -140,6 +140,10 @@ If that setting is disabled, the worker won't fail on initialization (getting fi
 
 The defaultt `url_domain_suffix` is `.dfs.core.windows.net`, you can override this in case of private endpoints.
 
+### url_storage_resource
+
+The url that is used during accessing a resource. Default value: `https://storage.azure.com/`
+
 ### azure_object_key_format
 
 The format of Azure Storage object keys. You can use several built-in variables:

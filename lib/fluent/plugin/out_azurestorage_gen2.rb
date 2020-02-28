@@ -39,6 +39,7 @@ module Fluent::Plugin
         config_param :enable_retry, :bool, :default => false
         config_param :startup_fail_on_error, :bool, :default => true
         config_param :url_domain_suffix, :string, :default => '.dfs.core.windows.net'
+        config_param :url_storage_resource, :string, :default => 'https://storage.azure.com/'
         config_param :format, :string, :default => "out_file"
         config_param :time_slice_format, :string, :default => '%Y%m%d'
         config_param :hex_random_length, :integer, default: 4
@@ -250,7 +251,7 @@ module Fluent::Plugin
         # https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/tutorial-linux-vm-access-storage#get-an-access-token-and-use-it-to-call-azure-storage
         private
         def acquire_access_token_msi
-            params = { :"api-version" => ACCESS_TOKEN_API_VERSION, :resource => "https://storage.azure.com/" }
+            params = { :"api-version" => ACCESS_TOKEN_API_VERSION, :resource => "#{@url_storage_resource}" }
             unless @azure_instance_msi.nil?
                 params[:msi_res_id] = @azure_instance_msi
             end
@@ -269,9 +270,9 @@ module Fluent::Plugin
 
         private
         def acquire_access_token_oauth_app
-            params = { :"api-version" => ACCESS_TOKEN_API_VERSION, :resource => "https://storage.azure.com/"}
+            params = { :"api-version" => ACCESS_TOKEN_API_VERSION, :resource => "#{@url_storage_resource}"}
             headers = {:"Content-Type" => "application/x-www-form-urlencoded"}
-            content = "grant_type=client_credentials&client_id=#{@azure_oauth_app_id}&client_secret=#{@azure_oauth_secret}&resource=https://storage.azure.com/"
+            content = "grant_type=client_credentials&client_id=#{@azure_oauth_app_id}&client_secret=#{@azure_oauth_secret}&resource=#{@url_storage_resource}"
             request = Typhoeus::Request.new("https://login.microsoftonline.com/#{@azure_oauth_tenant_id}/oauth2/token", :body => content, :headers => headers)
             request.on_complete do |response|
                 if response.success?
@@ -287,7 +288,7 @@ module Fluent::Plugin
 
         private
         def acquire_access_token_by_az
-            access_token=`az account get-access-token --resource https://storage.azure.com/ --query accessToken -o tsv`
+            access_token=`az account get-access-token --resource #{@url_storage_resource} --query accessToken -o tsv`
             log.debug "azurestorage_gen2: Token response: #{access_token}"
             @azure_access_token = access_token.chomp
         end
