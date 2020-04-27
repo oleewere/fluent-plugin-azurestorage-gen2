@@ -287,6 +287,18 @@ The time to wait old logs. Default is 10 minutes.
 
 Use UTC instead of local time.
 
+### proxy_url
+
+Proxy URL for Azure endpoint.
+
+### proxy_username
+
+Proxy username for Azure proxy endpoint (used only if `proxy_url` is filled)
+
+### proxy_password
+
+Proxy password for Azure `proxy_username` (used only if `proxy_url` is filled)
+
 ## TODOs
 
 - add storage key support

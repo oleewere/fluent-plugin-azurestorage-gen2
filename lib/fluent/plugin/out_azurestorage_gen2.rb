@@ -44,6 +44,9 @@ module Fluent::Plugin
         config_param :time_slice_format, :string, :default => '%Y%m%d'
         config_param :hex_random_length, :integer, default: 4
         config_param :command_parameter, :string, :default => nil
+        config_param :proxy_url, :string, :default => nil
+        config_param :proxy_username, :string, :default => nil
+        config_param :proxy_password, :string, :default => nil, :secret => true
 
         DEFAULT_FORMAT_TYPE = "out_file"
         ACCESS_TOKEN_API_VERSION = "2018-02-01"
@@ -255,7 +258,12 @@ module Fluent::Plugin
             unless @azure_instance_msi.nil?
                 params[:msi_res_id] = @azure_instance_msi
             end
-            request = Typhoeus::Request.new("http://169.254.169.254/metadata/identity/oauth2/token", params: params, headers: { Metadata: "true"})
+            req_opts = {
+                :params => params,
+                :headers => { Metadata: "true" }
+            }
+            add_proxy_options(req_opts)
+            request = Typhoeus::Request.new("http://169.254.169.254/metadata/identity/oauth2/token", req_opts)
             request.on_complete do |response|
                 if response.success?
                   data = JSON.parse(response.body)
@@ -273,7 +281,13 @@ module Fluent::Plugin
             params = { :"api-version" => ACCESS_TOKEN_API_VERSION, :resource => "#{@url_storage_resource}"}
             headers = {:"Content-Type" => "application/x-www-form-urlencoded"}
             content = "grant_type=client_credentials&client_id=#{@azure_oauth_app_id}&client_secret=#{@azure_oauth_secret}&resource=#{@url_storage_resource}"
-            request = Typhoeus::Request.new("https://login.microsoftonline.com/#{@azure_oauth_tenant_id}/oauth2/token", :body => content, :headers => headers)
+            req_opts = {
+                :params => params,
+                :body => content, 
+                :headers => headers
+            }
+            add_proxy_options(req_opts)
+            request = Typhoeus::Request.new("https://login.microsoftonline.com/#{@azure_oauth_tenant_id}/oauth2/token", req_opts)
             request.on_complete do |response|
                 if response.success?
                   data = JSON.parse(response.body)
@@ -300,7 +314,13 @@ module Fluent::Plugin
             params = {:resource => "filesystem" }
             auth_header = create_auth_header("head", datestamp, "#{@azure_container}", headers, params)
             headers[:Authorization] = auth_header
-            request = Typhoeus::Request.new("https://#{azure_storage_account}#{@url_domain_suffix}/#{@azure_container}", :method => :head, :params => params, :headers=> headers)
+            req_opts = {
+                :method => :head,
+                :params => params,
+                :headers => headers
+            }
+            add_proxy_options(req_opts)
+            request = Typhoeus::Request.new("https://#{azure_storage_account}#{@url_domain_suffix}/#{@azure_container}", req_opts)
             request.on_complete do |response|
                 if response.success?
                   log.info "azurestorage_gen2: Container '#{@azure_container}' exists."
@@ -327,7 +347,13 @@ module Fluent::Plugin
             params = {:resource => "filesystem" }
             auth_header = create_auth_header("put", datestamp, "#{@azure_container}", headers, params)
             headers[:Authorization] = auth_header
-            request = Typhoeus::Request.new("https://#{azure_storage_account}#{@url_domain_suffix}/#{@azure_container}", :method => :put, :params => params, :headers=> headers)
+            req_opts = {
+                :method => :put,
+                :params => params,
+                :headers => headers
+            }
+            add_proxy_options(req_opts)
+            request = Typhoeus::Request.new("https://#{azure_storage_account}#{@url_domain_suffix}/#{@azure_container}", req_opts)
             request.on_complete do |response|
                 if response.success?
                     log.debug "azurestorage_gen2: Container '#{@azure_container}' created, response code: #{response.code}"
@@ -347,7 +373,13 @@ module Fluent::Plugin
             params = {:resource => "file", :recursive => "false"}
             auth_header = create_auth_header("put", datestamp, "#{@azure_container}#{blob_path}", headers, params)
             headers[:Authorization] = auth_header
-            request = Typhoeus::Request.new("https://#{azure_storage_account}#{@url_domain_suffix}/#{@azure_container}#{blob_path}", :method => :put, :params => params, :headers=> headers)
+            req_opts = {
+                :method => :put,
+                :params => params,
+                :headers => headers
+            }
+            add_proxy_options(req_opts)
+            request = Typhoeus::Request.new("https://#{azure_storage_account}#{@url_domain_suffix}/#{@azure_container}#{blob_path}", req_opts)
             request.on_complete do |response|
                 if response.success?
                     log.debug "azurestorage_gen2: Blob '#{blob_path}' has been created, response code: #{response.code}"
@@ -370,7 +402,14 @@ module Fluent::Plugin
             params = {:action => "append", :position => "#{position}"}
             auth_header = create_auth_header("patch", datestamp, "#{@azure_container}#{blob_path}", headers, params)
             headers[:Authorization] = auth_header
-            request = Typhoeus::Request.new("https://#{azure_storage_account}#{@url_domain_suffix}/#{@azure_container}#{blob_path}", :method => :patch, :headers=> headers, :params => params, :body => content)
+            req_opts = {
+                :method => :patch,
+                :params => params,
+                :headers => headers,
+                :body => content
+            }
+            add_proxy_options(req_opts)
+            request = Typhoeus::Request.new("https://#{azure_storage_account}#{@url_domain_suffix}/#{@azure_container}#{blob_path}", req_opts)
             request.on_complete do |response|
                 if response.success?
                     log.debug "azurestorage_gen2: Blob '#{blob_path}' has been appended, response code: #{response.code}"
@@ -395,7 +434,13 @@ module Fluent::Plugin
             params = {:action => "flush", :position => "#{position}"}
             auth_header = create_auth_header("patch", datestamp, "#{@azure_container}#{blob_path}",headers, params)
             headers[:Authorization] = auth_header
-            request = Typhoeus::Request.new("https://#{azure_storage_account}#{@url_domain_suffix}/#{@azure_container}#{blob_path}", :method => :patch, :params => params, :headers=> headers)
+            req_opts = {
+                :method => :patch,
+                :params => params,
+                :headers => headers
+            }
+            add_proxy_options(req_opts)
+            request = Typhoeus::Request.new("https://#{azure_storage_account}#{@url_domain_suffix}/#{@azure_container}#{blob_path}", req_opts)
             request.on_complete do |response|
                 if response.success?
                     log.debug "azurestorage_gen2: Blob '#{blob_path}' flush was successful, response code: #{response.code}"
@@ -416,7 +461,13 @@ module Fluent::Plugin
             content_length = -1
             auth_header = create_auth_header("head", datestamp, "#{@azure_container}#{blob_path}", headers, params)
             headers[:Authorization] = auth_header
-            request = Typhoeus::Request.new("https://#{azure_storage_account}#{@url_domain_suffix}/#{@azure_container}#{blob_path}", :method => :head, :params => params, :headers=> headers)
+            req_opts = {
+                :method => :head,
+                :params => params,
+                :headers => headers
+            }
+            add_proxy_options(req_opts)
+            request = Typhoeus::Request.new("https://#{azure_storage_account}#{@url_domain_suffix}/#{@azure_container}#{blob_path}", req_opts)
             request.on_complete do |response|
                 if response.success?
                   log.debug "azurestorage_gen2: Get blob properties for '#{blob_path}', response headers: #{response.headers}"
@@ -482,6 +533,16 @@ module Fluent::Plugin
                 "Bearer #{@azure_access_token}"
             else
                 "SharedKey #{@azure_storage_account}:#{signed(method, datestamp, resource, headers, params)}"
+            end
+        end
+        
+        private
+        def add_proxy_options(req_opts = {})
+            unless @proxy_url.nil?
+                req_opts[:proxy] = @proxy_url
+                unless @proxy_username.nil? || @proxy_password.nil?
+                    req_opts[:proxyuserpwd] = "#{@proxy_username}:#{@proxy_password}"
+                end
             end
         end
 
