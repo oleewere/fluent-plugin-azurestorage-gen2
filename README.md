@@ -283,9 +283,17 @@ Format of the time used as the file name. Default is '%Y%m%d'. Use '%Y%m%d%H' to
 
 The time to wait old logs. Default is 10 minutes.
 
+### upload_timestamp_format
+
+Format of the upload timestamp used as the file name. Can be used instead of index in case of `write_only` option is enabled. Default value is '%H%M%S%L'.
+
 ### utc
 
 Use UTC instead of local time.
+
+### write_only
+
+If that option is enabled, HEAD calls are skipped during blob operations. (so make sure to set the chunk limit to 4MB in order to avoid HEAD operation because of the append operation needs the last position of the uploaded blobs).
 
 ### proxy_url
 
