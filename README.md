@@ -152,6 +152,7 @@ The format of Azure Storage object keys. You can use several built-in variables:
 - %{time_slice}
 - %{index}
 - %{file_extension}
+- %{upload_timestamp}
 
 to decide keys dynamically.
 
@@ -159,6 +160,7 @@ to decide keys dynamically.
 %{time_slice} is the time-slice in text that are formatted with *time_slice_format*.
 %{index} is the sequential number starts from 0, increments when multiple files are uploaded to Azure Storage in the same time slice.
 %{file_extention} is always "gz" for now.
+%{upload_timestamp} is an upload timestamp in text that are formatted with *upload_timestamp_format*. Difference between time_slice and upload_timestamp is that the second one is the actual system timestamp (other one is from the metadata)
 
 The default format is "%{path}%{time_slice}_%{index}.%{file_extension}".
 
