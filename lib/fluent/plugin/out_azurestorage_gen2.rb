@@ -47,6 +47,7 @@ module Fluent::Plugin
         config_param :proxy_url, :string, :default => nil
         config_param :proxy_username, :string, :default => nil
         config_param :proxy_password, :string, :default => nil, :secret => true
+        config_param :write_only, :bool, :default => false
 
         DEFAULT_FORMAT_TYPE = "out_file"
         ACCESS_TOKEN_API_VERSION = "2018-02-01"
@@ -161,11 +162,16 @@ module Fluent::Plugin
         private
         def upload_blob(content, chunk)
             log.debug "azurestorage_gen2: Uploading blob: #{@azure_storage_path}"
-            existing_content_length = get_blob_properties(@azure_storage_path)
-            if existing_content_length == 0
+            if @write_only
                 create_blob(@azure_storage_path)
+                append_blob(content, chunk, 0)
+            else
+                existing_content_length = get_blob_properties(@azure_storage_path)
+                if existing_content_length == 0
+                    create_blob(@azure_storage_path)
+                end
+                append_blob(content, chunk, existing_content_length)
             end
-            append_blob(content, chunk, existing_content_length)
         end
 
         private
