@@ -48,6 +48,7 @@ module Fluent::Plugin
         config_param :proxy_username, :string, :default => nil
         config_param :proxy_password, :string, :default => nil, :secret => true
         config_param :write_only, :bool, :default => false
+        config_param :upload_timestamp_format, :string, :default => '%H%M%S%L'
 
         DEFAULT_FORMAT_TYPE = "out_file"
         ACCESS_TOKEN_API_VERSION = "2018-02-01"
@@ -184,8 +185,10 @@ module Fluent::Plugin
                      end
             if @localtime
                 hms_slicer = Time.now.strftime("%H%M%S")
+                upload_timestamp = Time.now.strftime(@upload_timestamp_format)
             else
                 hms_slicer = Time.now.utc.strftime("%H%M%S")
+                upload_timestamp = Time.now.utc.strftime(@upload_timestamp_format)
             end
 
             @values_for_object_chunk[chunk.unique_id] ||= {
@@ -195,7 +198,8 @@ module Fluent::Plugin
                 "%{path}" => @path,
                 "%{index}" => index,
                 "%{uuid_flush}" => uuid_random,
-                "%{file_extension}" => @final_file_extension
+                "%{file_extension}" => @final_file_extension,
+                "%{upload_timestamp}" => upload_timestamp,
             }
             values_for_object_key_post = {
                 "%{date_slice}" => time_slice,
