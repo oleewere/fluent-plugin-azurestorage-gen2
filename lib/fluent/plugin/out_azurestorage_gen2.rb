@@ -107,12 +107,20 @@ module Fluent::Plugin
             if !@skip_container_check
                 if @failsafe_container_check
                     begin
-                        ensure_container
+                        if @write_only && @auto_create_container
+                            create_container
+                        else
+                            ensure_container
+                        end
                     rescue Exception => e
                         log.warn("#{e.message}, container list/create failsafe is enabled. Continue without those operations.")
                     end
                 else
-                    ensure_container
+                    if @write_only && @auto_create_container
+                        create_container
+                    else
+                        ensure_container
+                    end
                 end
             end
             super
