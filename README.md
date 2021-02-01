@@ -31,6 +31,7 @@ $ gem install fluent-plugin-azurestorage-gen2
   azure_storage_account            mystorageabfs
   azure_container                  mycontainer
   azure_instance_msi               /subscriptions/mysubscriptionid
+  azure_client_id                  <msi client id>
   azure_object_key_format          %{path}-%{index}.%{file_extension}
   azure_oauth_refresh_interval     3600
   time_slice_format                %Y%m%d-%H
@@ -91,6 +92,10 @@ Your Azure Storage Access Key(Primary or Secondary). This also can be got from A
 ### azure_instance_msi
 
 Your Azure Managed Service Identity ID. When storage key authentication is not used, the plugin uses OAuth2 to authenticate as given MSI. This authentication method only works on Azure VM. If the VM has only one MSI assigned, this parameter becomes optional and the only MSI will be used. Otherwise this parameter is required.
+
+### azure_client_id
+
+Your Azure Managed Service Identity client ID. this is required in combination of azure_instance_msi.
 
 ### azure_oauth_tenant_id (Preview)
 

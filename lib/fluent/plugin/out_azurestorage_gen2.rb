@@ -24,6 +24,7 @@ module Fluent::Plugin
         config_param :azure_storage_account, :string, :default => nil
         config_param :azure_storage_access_key, :string, :default => nil, :secret => true
         config_param :azure_instance_msi, :string, :default => nil
+        config_param :azure_client_id, :string, :default => nil
         config_param :azure_oauth_app_id, :string, :default => nil, :secret => true
         config_param :azure_oauth_secret, :string, :default => nil, :secret => true
         config_param :azure_oauth_tenant_id, :string, :default => nil
@@ -58,7 +59,7 @@ module Fluent::Plugin
         config_section :format do
             config_set_default :@type, DEFAULT_FORMAT_TYPE
         end
-  
+
         config_section :buffer do
             config_set_default :chunk_keys, ['time']
             config_set_default :timekey, (60 * 60 * 24)
@@ -81,7 +82,7 @@ module Fluent::Plugin
             end
 
             @formatter = formatter_create
-      
+
             if @azure_container.nil?
               raise Fluent::ConfigError, "azure_container is needed"
             end
@@ -275,6 +276,7 @@ module Fluent::Plugin
             params = { :"api-version" => ACCESS_TOKEN_API_VERSION, :resource => "#{@url_storage_resource}" }
             unless @azure_instance_msi.nil?
                 params[:msi_res_id] = @azure_instance_msi
+                params[:client_id] = @azure_client_id
             end
             req_opts = {
                 :params => params,
