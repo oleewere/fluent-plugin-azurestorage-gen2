@@ -25,6 +25,7 @@ module Fluent::Plugin
         config_param :azure_storage_access_key, :string, :default => nil, :secret => true
         config_param :azure_instance_msi, :string, :default => nil
         config_param :azure_client_id, :string, :default => nil
+        config_param :azure_object_id, :string, :default => nil
         config_param :azure_oauth_app_id, :string, :default => nil, :secret => true
         config_param :azure_oauth_secret, :string, :default => nil, :secret => true
         config_param :azure_oauth_tenant_id, :string, :default => nil
@@ -276,7 +277,12 @@ module Fluent::Plugin
             params = { :"api-version" => ACCESS_TOKEN_API_VERSION, :resource => "#{@url_storage_resource}" }
             unless @azure_instance_msi.nil?
                 params[:msi_res_id] = @azure_instance_msi
+            end
+            unless @azure_client_id.nil?
                 params[:client_id] = @azure_client_id
+            end
+            unless @azure_object_id.nil?
+                params[:object_id] = @azure_object_id
             end
             req_opts = {
                 :params => params,

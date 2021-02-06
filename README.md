@@ -95,7 +95,11 @@ Your Azure Managed Service Identity ID. When storage key authentication is not u
 
 ### azure_client_id
 
-Your Azure Managed Service Identity client ID. this is required in combination of azure_instance_msi.
+Azure AD client id is a specific explicit identity to use when authenticating to Azure AD. Mutually exclusive with azure_object_id and azure_instance_msi. (for now, you need to define next to `azure_instance_msi`)
+
+### azure_object_id
+
+Azure AD object id is a specific explicit identity to use when authenticating to Azure AD. Mutually exclusive with azure_client_id and azure_instance_msi. (for now, you need to define next to `azure_instance_msi`)
 
 ### azure_oauth_tenant_id (Preview)
 
