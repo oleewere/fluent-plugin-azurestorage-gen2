@@ -51,6 +51,7 @@ module Fluent::Plugin
         config_param :proxy_password, :string, :default => nil, :secret => true
         config_param :write_only, :bool, :default => false
         config_param :upload_timestamp_format, :string, :default => '%H%M%S%L'
+        config_param :http_timeout_seconds, :integer, :default => 120
 
         DEFAULT_FORMAT_TYPE = "out_file"
         ACCESS_TOKEN_API_VERSION = "2018-02-01"
@@ -286,7 +287,8 @@ module Fluent::Plugin
             end
             req_opts = {
                 :params => params,
-                :headers => { Metadata: "true" }
+                :headers => { Metadata: "true" },
+                :timeout => @http_timeout_seconds
             }
             add_proxy_options(req_opts)
             request = Typhoeus::Request.new("http://169.254.169.254/metadata/identity/oauth2/token", req_opts)
@@ -310,7 +312,8 @@ module Fluent::Plugin
             req_opts = {
                 :params => params,
                 :body => content, 
-                :headers => headers
+                :headers => headers,
+                :timeout => @http_timeout_seconds
             }
             add_proxy_options(req_opts)
             request = Typhoeus::Request.new("https://login.microsoftonline.com/#{@azure_oauth_tenant_id}/oauth2/token", req_opts)
@@ -343,7 +346,8 @@ module Fluent::Plugin
             req_opts = {
                 :method => :head,
                 :params => params,
-                :headers => headers
+                :headers => headers,
+                :timeout => @http_timeout_seconds
             }
             add_proxy_options(req_opts)
             request = Typhoeus::Request.new("https://#{azure_storage_account}#{@url_domain_suffix}/#{@azure_container}", req_opts)
@@ -376,7 +380,8 @@ module Fluent::Plugin
             req_opts = {
                 :method => :put,
                 :params => params,
-                :headers => headers
+                :headers => headers,
+                :timeout => @http_timeout_seconds
             }
             add_proxy_options(req_opts)
             request = Typhoeus::Request.new("https://#{azure_storage_account}#{@url_domain_suffix}/#{@azure_container}", req_opts)
@@ -402,7 +407,8 @@ module Fluent::Plugin
             req_opts = {
                 :method => :put,
                 :params => params,
-                :headers => headers
+                :headers => headers,
+                :timeout => @http_timeout_seconds
             }
             add_proxy_options(req_opts)
             request = Typhoeus::Request.new("https://#{azure_storage_account}#{@url_domain_suffix}/#{@azure_container}#{blob_path}", req_opts)
@@ -432,7 +438,8 @@ module Fluent::Plugin
                 :method => :patch,
                 :params => params,
                 :headers => headers,
-                :body => content
+                :body => content,
+                :timeout => @http_timeout_seconds
             }
             add_proxy_options(req_opts)
             request = Typhoeus::Request.new("https://#{azure_storage_account}#{@url_domain_suffix}/#{@azure_container}#{blob_path}", req_opts)
@@ -463,7 +470,8 @@ module Fluent::Plugin
             req_opts = {
                 :method => :patch,
                 :params => params,
-                :headers => headers
+                :headers => headers,
+                :timeout => @http_timeout_seconds
             }
             add_proxy_options(req_opts)
             request = Typhoeus::Request.new("https://#{azure_storage_account}#{@url_domain_suffix}/#{@azure_container}#{blob_path}", req_opts)
@@ -490,7 +498,8 @@ module Fluent::Plugin
             req_opts = {
                 :method => :head,
                 :params => params,
-                :headers => headers
+                :headers => headers,
+                :timeout => @http_timeout_seconds
             }
             add_proxy_options(req_opts)
             request = Typhoeus::Request.new("https://#{azure_storage_account}#{@url_domain_suffix}/#{@azure_container}#{blob_path}", req_opts)

@@ -318,6 +318,10 @@ Proxy username for Azure proxy endpoint (used only if `proxy_url` is filled)
 
 Proxy password for Azure `proxy_username` (used only if `proxy_url` is filled)
 
+### http_timeout_seconds
+
+The time limit for HTTP request in seconds. Default: 120
+
 ## TODOs
 
 - add storage key support
