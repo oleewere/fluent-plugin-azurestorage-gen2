@@ -25,6 +25,7 @@ jobs:
       - name: Publish gem
         run: |
           curl -u $RUBYGEMS_USER:$RUBYGEMS_PASSWORD https://rubygems.org/api/v1/api_key.yaml > ~/.gem/credentials
+          chmod 0600 ~/.gem/credentials
           make push
         env:
           RUBYGEMS_USER: ${{ secrets.RUBYGEMS_USER }}
