@@ -85,7 +85,7 @@ $ gem install fluent-plugin-azurestorage-gen2
   azure_oauth_tenant_id            <my tenant id>
   azure_oauth_app_id               <my app client id>
   azure_oauth_secret               <my client secret>
-  azure_oauth_identity_authority   login.microsoftonline.us
+  azure_oauth_identity_authority   https://login.microsoftonline.us
   ...
 </match>
 ```
@@ -127,7 +127,7 @@ OAuth client secret that is used for OAuth based authentication. Required if OAu
 
 ### azure_oauth_identity_authority
 
-Identity Authority URL used to retrieve the OAuth token. Default is commercial cloud of 'login.microsoftonline.com' and to switch to using Azure Government Cloud, provide a value of 'login.microsoftonline.us'
+Identity Authority URL used to retrieve the OAuth token. Default is commercial cloud of 'https://login.microsoftonline.com' and to switch to using Azure Government Cloud, provide a value of 'https://login.microsoftonline.us'
 
 ### azure_oauth_refresh_interval
 
