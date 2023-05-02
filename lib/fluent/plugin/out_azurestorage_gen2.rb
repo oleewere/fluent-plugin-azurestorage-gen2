@@ -29,6 +29,7 @@ module Fluent::Plugin
         config_param :azure_oauth_app_id, :string, :default => nil, :secret => true
         config_param :azure_oauth_secret, :string, :default => nil, :secret => true
         config_param :azure_oauth_tenant_id, :string, :default => nil
+        config_param :azure_oauth_identity_authority, :string, :default => "login.microsoftonline.com"
         config_param :azure_oauth_use_azure_cli, :bool, :default => false
         config_param :azure_oauth_refresh_interval, :integer, :default => 60 * 60
         config_param :azure_container, :string, :default => nil
@@ -316,7 +317,7 @@ module Fluent::Plugin
                 :timeout => @http_timeout_seconds
             }
             add_proxy_options(req_opts)
-            request = Typhoeus::Request.new("https://login.microsoftonline.com/#{@azure_oauth_tenant_id}/oauth2/token", req_opts)
+            request = Typhoeus::Request.new("#{@azure_oauth_identity_authority}/#{@azure_oauth_tenant_id}/oauth2/token", req_opts)
             request.on_complete do |response|
                 if response.success?
                   data = JSON.parse(response.body)

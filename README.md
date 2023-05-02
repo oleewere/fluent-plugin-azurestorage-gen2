@@ -78,6 +78,18 @@ $ gem install fluent-plugin-azurestorage-gen2
 </match>
 ```
 
+- Configuration outside of VMs with OAuth credentials using Azure Government:
+```
+<match **>
+  ...
+  azure_oauth_tenant_id            <my tenant id>
+  azure_oauth_app_id               <my app client id>
+  azure_oauth_secret               <my client secret>
+  azure_oauth_identity_authority   login.microsoftonline.us
+  ...
+</match>
+```
+
 ### Configuration options
 
 ### azure_storage_account
@@ -112,6 +124,10 @@ OAuth client id that is used for OAuth based authentication. Required if OAuth b
 ### azure_oauth_secret (Preview)
 
 OAuth client secret that is used for OAuth based authentication. Required if OAuth based credential mechanism is used.
+
+### azure_oauth_identity_authority
+
+Identity Authority URL used to retrieve the OAuth token. Default is commercial cloud of 'login.microsoftonline.com' and to switch to using Azure Government Cloud, provide a value of 'login.microsoftonline.us'
 
 ### azure_oauth_refresh_interval
 
