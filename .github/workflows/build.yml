@@ -3,7 +3,7 @@ name: Build Gem
 on:
   push:
     branches:
-      - main
+      - master
 
 jobs:
   build:
