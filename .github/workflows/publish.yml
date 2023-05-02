@@ -22,9 +22,6 @@ jobs:
         with:
           ruby-version: '2.7'
 
-      - name: Build gem
-        run: make gem
-
       - name: Publish gem
         run: |
           curl -u $RUBYGEMS_USER:$RUBYGEMS_PASSWORD https://rubygems.org/api/v1/api_key.yaml > ~/.gem/credentials
