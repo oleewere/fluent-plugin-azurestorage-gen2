@@ -1,0 +1,34 @@
+name: Publish Gem
+
+on:
+  push:
+    tags:
+      - '*'
+
+env:
+  RUBYGEMS_USER: ${{ secrets.RUBYGEMS_USER }}
+  RUBYGEMS_PASSWORD: ${{ secrets.RUBYGEMS_PASSWORD }}
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@ec02537da5712d66d4d50a0f33b7eb52773b5ed1
+        with:
+          ruby-version: '2.7'
+
+      - name: Build gem
+        run: make gem
+
+      - name: Publish gem
+        run: |
+          curl -u $RUBYGEMS_USER:$RUBYGEMS_PASSWORD https://rubygems.org/api/v1/api_key.yaml > ~/.gem/credentials
+          make push
+        env:
+          RUBYGEMS_USER: ${{ secrets.RUBYGEMS_USER }}
+          RUBYGEMS_PASSWORD: ${{ secrets.RUBYGEMS_PASSWORD }}
