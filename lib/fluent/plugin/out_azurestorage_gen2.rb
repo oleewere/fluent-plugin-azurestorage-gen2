@@ -29,7 +29,7 @@ module Fluent::Plugin
         config_param :azure_oauth_app_id, :string, :default => nil, :secret => true
         config_param :azure_oauth_secret, :string, :default => nil, :secret => true
         config_param :azure_oauth_tenant_id, :string, :default => nil
-        config_param :azure_oauth_identity_authority, :string, :default => "login.microsoftonline.com"
+        config_param :azure_oauth_identity_authority, :string, :default => "https://login.microsoftonline.com"
         config_param :azure_oauth_use_azure_cli, :bool, :default => false
         config_param :azure_oauth_refresh_interval, :integer, :default => 60 * 60
         config_param :azure_container, :string, :default => nil
