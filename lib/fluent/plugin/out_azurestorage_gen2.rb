@@ -1,5 +1,6 @@
 require 'net/http'
 require 'base64'
+require 'open3'
 require 'openssl'
 require 'json'
 require 'tempfile'
@@ -53,6 +54,8 @@ module Fluent::Plugin
         config_param :write_only, :bool, :default => false
         config_param :upload_timestamp_format, :string, :default => '%H%M%S%L'
         config_param :http_timeout_seconds, :integer, :default => 120
+        config_param :local_testing, :bool, :default => false
+        config_param :local_testing_folder, :string, :default => ""
 
         DEFAULT_FORMAT_TYPE = "out_file"
         ACCESS_TOKEN_API_VERSION = "2018-02-01"
@@ -107,8 +110,10 @@ module Fluent::Plugin
         end
 
         def start
-            setup_access_token
-            if !@skip_container_check
+            if !@local_testing
+                setup_access_token
+            end
+            if !local_testing && !@skip_container_check
                 if @failsafe_container_check
                     begin
                         if @write_only && @auto_create_container
@@ -145,7 +150,11 @@ module Fluent::Plugin
                 raw_data = chunk.read
                 unless raw_data.empty?
                     log.debug "azurestorage_gen2: processing raw data", chunk_id: dump_unique_id_hex(chunk.unique_id)
-                    upload_blob(raw_data, chunk)
+                    if @local_testing
+                        handle_local_copy(raw_data, chunk)
+                    else
+                        upload_blob(raw_data, chunk)
+                    end
                 end
                 chunk.close rescue nil
                 @last_azure_storage_path = @azure_storage_path
@@ -162,7 +171,11 @@ module Fluent::Plugin
                     end
                     log.debug "azurestorage_gen2: Start uploading temp file: #{tmp.path}"
                     content = File.open(tmp.path, 'rb') { |file| file.read }
-                    upload_blob(content, chunk)
+                    if @local_testing
+                        handle_local_compressed_copy(content, chunk)
+                    else
+                        upload_blob(content, chunk)
+                    end
                     @last_azure_storage_path = @azure_storage_path
                 ensure
                     tmp.close(true) rescue nil
@@ -646,6 +659,24 @@ module Fluent::Plugin
             end
         end
 
+        def handle_local_copy(content, chunk)
+            folder = @local_testing_folder.empty? ? Dir.pwd : @local_testing_folder
+            local_path = File.join(folder, "fluentd_output_#{Time.now.to_i}.log")
+            File.open(local_path, 'wb') do |file|
+                chunk.write_to(file)
+            end
+            log.info "Data written to local file: #{local_path}"
+        end
+        
+        def handle_local_compressed_copy(content, chunk)
+            folder = @local_testing_folder.empty? ? Dir.pwd : @local_testing_folder
+            local_path = File.join(folder, "fluentd_output_#{Time.now.to_i}.#{@final_file_extension}")
+            File.open(local_path, 'wb') do |file|
+                file.write(content)
+            end
+            log.info "Compressed data written to local file: #{local_path}"
+        end
+
         def uuid_random
             require 'uuidtools'
             ::UUIDTools::UUID.random_create.to_s
@@ -745,12 +776,90 @@ module Fluent::Plugin
               'application/json'.freeze
             end
         end
+
+        class ParquetCompressor < Compressor
+      
+            config_section :compress, multi: false do
+              desc "parquet compression codec"
+              config_param :parquet_compression_codec, :enum, list: [:uncompressed, :snappy, :gzip, :lzo, :brotli, :lz4, :zstd], default: :snappy
+              desc "parquet file page size"
+              config_param :parquet_page_size, :size, default: 8192
+              desc "parquet file row group size"
+              config_param :parquet_row_group_size, :size, default: 128 * 1024 * 1024
+              desc "record data format type"
+              config_param :record_type, :enum, list: [:avro, :csv, :jsonl, :msgpack, :tsv, :json], default: :msgpack
+              desc "schema type"
+              config_param :schema_type, :enum, list: [:avro, :bigquery], default: :avro
+              desc "path to schema file"
+              config_param :schema_file, :string
+            end
+      
+            def configure(conf)
+              super
+              check_command("columnify", "-h")
+      
+              if [:lzo, :brotli, :lz4].include?(@compress.parquet_compression_codec)
+                raise Fluent::ConfigError, "unsupported compression codec: #{@compress.parquet_compression_codec}"
+              end
+      
+              @parquet_compression_codec = @compress.parquet_compression_codec.to_s.upcase
+              if @compress.record_type == :json
+                @record_type = :jsonl
+              else
+                @record_type = @compress.record_type
+              end
+            end
+      
+            def ext
+              "parquet".freeze
+            end
+      
+            def content_type
+              "application/octet-stream".freeze
+            end
+      
+            def compress(chunk, tmp)
+              chunk_is_file = @buffer_type == "file"
+              path = if chunk_is_file
+                       chunk.path
+                     else
+                       w = Tempfile.new("chunk-parquet-tmp")
+                       w.binmode
+                       chunk.write_to(w)
+                       w.close
+                       w.path
+                     end
+              stdout, stderr, status = columnify(path, tmp.path)
+              unless status.success?
+                raise Fluent::UnrecoverableError, "failed to execute columnify command. stdout=#{stdout} stderr=#{stderr} status=#{status.inspect}"
+              end
+            ensure
+              unless chunk_is_file
+                w.close(true) rescue nil
+              end
+            end
+      
+            private
+      
+            def columnify(src_path, dst_path)
+                Open3.capture3("columnify",
+                             "-parquetCompressionCodec", @parquet_compression_codec,
+                             "-parquetPageSize", @compress.parquet_page_size.to_s,
+                             "-parquetRowGroupSize", @compress.parquet_row_group_size.to_s,
+                             "-recordType", @record_type.to_s,
+                             "-schemaType", @compress.schema_type.to_s,
+                             "-schemaFile", @compress.schema_file,
+                             "-output", dst_path,
+                             src_path)
+            end
+        end
       
         COMPRESSOR_REGISTRY = Fluent::Registry.new(:azurestorage_compressor_type, 'fluent/plugin/azurestorage_gen2_compressor_')
         {
               'gzip' => GzipCompressor,
               'json' => JsonCompressor,
-              'text' => TextCompressor
+              'text' => TextCompressor,
+              'parquet' => ParquetCompressor
         }.each { |name, compressor|
             COMPRESSOR_REGISTRY.register(name, compressor)
         }
