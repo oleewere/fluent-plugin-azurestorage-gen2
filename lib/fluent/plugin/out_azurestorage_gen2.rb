@@ -23,6 +23,8 @@ module Fluent::Plugin
         config_param :path, :string, :default => ""
         config_param :azure_storage_account, :string, :default => nil
         config_param :azure_storage_access_key, :string, :default => nil, :secret => true
+        config_param :azure_use_workload_id, :string, :default => false
+        config_param :azure_federated_token_file_path, :string, :default => nil
         config_param :azure_instance_msi, :string, :default => nil
         config_param :azure_client_id, :string, :default => nil
         config_param :azure_object_id, :string, :default => nil
@@ -261,15 +263,47 @@ module Fluent::Plugin
         end
 
         def acquire_access_token
-            if !@azure_instance_msi.nil?
+            if @azure_use_workload_id
+                acquire_access_token_federated
+            elsif !@azure_instance_msi.nil?
                 acquire_access_token_msi
             elsif !@azure_oauth_app_id.nil? and !@azure_oauth_secret.nil? and !@azure_oauth_tenant_id.nil?
                 acquire_access_token_oauth_app
             elsif @azure_oauth_use_azure_cli
                 acquire_access_token_by_az
             else
-                raise Fluent::UnrecoverableError, "Using MSI or 'az cli tool' or simple OAuth 2.0 based authentication parameters (azure_oauth_tenant_id, azure_oauth_app_id, azure_oauth_secret) are required."
+                raise Fluent::UnrecoverableError, "Using MSI or Workload Identity or 'az cli tool' or simple OAuth 2.0 based authentication parameters (azure_oauth_tenant_id, azure_oauth_app_id, azure_oauth_secret) are required."
             end
+        end
+
+        private
+        def acquire_access_token_federated
+          token_path = @azure_federated_token_file_path ||= ENV['AZURE_TOKEN_FILE'] ||= "/var/run/secrets/azure/tokens/azure-identity-token"
+          log.debug "azurestorage_gen2: Reading federated token from #{token_path}"
+          token = File.read(token_path)
+          log.debug "azurestorage_gen2: Locally mounted token: #{token}"
+          params = { :"api-version" => ACCESS_TOKEN_API_VERSION, :resource => "#{@url_storage_resource}"}
+          headers = {:"Content-Type" => "application/x-www-form-urlencoded"}
+          content = "grant_type=client_credentials&client_id=#{@azure_oauth_app_id}&client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer&client_assertion=#{token.chomp}&resource=#{@url_storage_resource}&scope=https://storage.azure.com/.default"
+          req_opts = {
+            :params => params,
+            :body => content,
+            :headers => headers,
+            :timeout => @http_timeout_seconds
+          }
+          add_proxy_options(req_opts)
+          request = Typhoeus::Request.new("#{@azure_oauth_identity_authority}/#{@azure_oauth_tenant_id}/oauth2/token", req_opts)
+
+          request.on_complete do |response|
+            if response.success?
+              data = JSON.parse(response.body)
+              log.debug "azurestorage_gen2: Token response: #{data}"
+              @azure_access_token = data["access_token"].chomp
+            else
+              raise Fluent::UnrecoverableError, "Failed to acquire access token. #{response.code}: #{response.body}"
+            end
+          end
+          request.run
         end
 
         # Referenced from azure doc.
