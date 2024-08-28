@@ -51,6 +51,34 @@ $ gem install fluent-plugin-azurestorage-gen2
 </match>
 ```
 
+- Configuration in a pod using Azure Workload Identity:
+```
+<match **>
+  @type azurestorage_gen2
+  azure_storage_account            mystorageabfs
+  azure_container                  mycontainer
+  azure_use_workload_id            true
+  azure_oauth_tenant_id            <my tenant id>
+  azure_oauth_app_id               <my app client id>
+  azure_object_key_format          %{path}-%{index}.%{file_extension}
+  azure_oauth_refresh_interval     3600
+  time_slice_format                %Y%m%d-%H
+  file_extension                   log # only used with store_as none
+  path                             "/cluster-logs/myfolder/${tag[1]}-#{Socket.gethostname}-%M"
+  auto_create_container            true
+  store_as                         gzip
+  format                           single_value
+  <buffer tag,time>
+    @type file
+    path /var/log/fluent/azurestorage-buffer
+    timekey 5m
+    timekey_wait 0s
+    timekey_use_utc true
+    chunk_limit_size 64m
+  </buffer>
+</match>
+```
+
 - Configuration outside of VMs with OAuth credentials:
 ```
 <match **>
@@ -97,6 +125,14 @@ $ gem install fluent-plugin-azurestorage-gen2
 Your Azure Storage Account Name. This can be got from Azure Management potal.
 This parameter is required when environment variable 'AZURE_STORAGE_ACCOUNT' is not set.
 
+### azure_use_workload_id
+
+Use Azure Workload Identity for authentication. The plugin will use a token generated from the kubernetes OIDC issuer to get an Azure OAuth2 token, which will be used to authenticate with the storage API. Supersedes other authentication types. Requires azure_oauth_tenant_id and azure_oauth_app_id to be set. See https://azure.github.io/azure-workload-identity/docs/introduction.html for implementation details. Default is false.
+
+### azure_federated_token_file_path
+
+The path where the federated token is mounted on the local filesystem. If not specified, defaults to the value of the environment variable `AZURE_FEDERATED_TOKEN_FILE`, or `/var/run/secrets/azure/tokens/azure-identity-token` if the environment variable is not set. Defaults set per Azure Workload Identity documentation.
+
 ### azure_storage_access_key (not implemented yet - use msi)
 
 Your Azure Storage Access Key(Primary or Secondary). This also can be got from Azure Management potal. Storage access key authentication is used when this parameter is provided or environment variable 'AZURE_STORAGE_ACCESS_KEY' is set.
@@ -115,11 +151,11 @@ Azure AD object id is a specific explicit identity to use when authenticating to
 
 ### azure_oauth_tenant_id (Preview)
 
-Azure account tenant id from your Azure Directory. Required if OAuth based credential mechanism is used.
+Azure account tenant id from your Azure Directory. Required if workload ID or OAuth based credential mechanism is used.
 
 ### azure_oauth_app_id (Preview)
 
-OAuth client id that is used for OAuth based authentication. Required if OAuth based credential mechanism is used.
+OAuth client id that is used for OAuth based authentication. Required if workload ID or OAuth based credential mechanism is used.
 
 ### azure_oauth_secret (Preview)
 
