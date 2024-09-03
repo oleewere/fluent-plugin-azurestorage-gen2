@@ -23,7 +23,7 @@ module Fluent::Plugin
         config_param :path, :string, :default => ""
         config_param :azure_storage_account, :string, :default => nil
         config_param :azure_storage_access_key, :string, :default => nil, :secret => true
-        config_param :azure_use_workload_id, :string, :default => false
+        config_param :azure_use_workload_id, :bool, :default => false
         config_param :azure_federated_token_file_path, :string, :default => nil
         config_param :azure_instance_msi, :string, :default => nil
         config_param :azure_client_id, :string, :default => nil
