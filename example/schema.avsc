@@ -1,0 +1,7 @@
+{
+  "type": "record",
+  "name": "LogRecord",
+  "fields": [
+    {"name": "sample", "type": "string"}
+  ]
+}
