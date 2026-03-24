@@ -1,6 +1,7 @@
 # Azure Datalake Storage Gen2 Fluentd Output Plugin
 
 ![Build](https://github.com/oleewere/fluent-plugin-azurestorage-gen2/actions/workflows/build.yml/badge.svg)
+[![Hypercommit](https://img.shields.io/badge/Hypercommit-DB2475)](https://hypercommit.com/fluent-plugin-azurestorage-gen2)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Gem Version](https://badge.fury.io/rb/fluent-plugin-azurestorage-gen2.svg)](http://badge.fury.io/rb/fluent-plugin-azurestorage-gen2)
 ![](https://ruby-gem-downloads-badge.herokuapp.com/fluent-plugin-azurestorage-gen2?type=total&metric=true)
